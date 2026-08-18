@@ -102,8 +102,19 @@
   });
 
   // =============================================
-  // 0. SHADOW DOM PIERCING UTILITY
+  // 0. EXTENSION ELEMENT EXCLUSION & DOM PIERCING
   // =============================================
+  function isExtensionElement(el) {
+    if (!el) return false;
+    try {
+      if (el.id === "ziggyflow-floating-hud" || el.id === "zf-mini-window" || el.id === "zf-pill-btn" || el.id === "ziggyflow-injected-header-btn") return true;
+      if (el.id === "ziggyflow-element-picker-overlay" || el.id === "ziggyflow-live-toast" || (typeof el.id === "string" && el.id.startsWith("zf-"))) return true;
+      if (el.getAttribute?.("data-ziggy-internal") === "true") return true;
+      if (el.closest?.("#ziggyflow-floating-hud, #zf-mini-window, #zf-pill-btn, [data-ziggy-internal='true'], #ziggyflow-element-picker-overlay, #zf-expanded-gallery-overlay")) return true;
+    } catch(e) {}
+    return false;
+  }
+
   function findAllDeep(selector) {
     const results = [];
     const seen = new Set();
@@ -113,7 +124,7 @@
       try {
         const elements = root.querySelectorAll(selector);
         for (const el of elements) {
-          if (!seen.has(el)) {
+          if (!seen.has(el) && !isExtensionElement(el)) {
             seen.add(el);
             results.push(el);
           }
@@ -151,6 +162,7 @@
 
       const btn = document.createElement("button");
       btn.id = "ziggyflow-injected-header-btn";
+      btn.setAttribute("data-ziggy-internal", "true");
       btn.style.cssText = `
         background: linear-gradient(135deg, #18191d 0%, #202227 100%);
         color: #ffffff; border: 1.5px solid #a3e635;
@@ -177,11 +189,17 @@
   // 2. VISUAL ELEMENT MAPPER & TEMPLATE RESOLVER
   // =============================================
   function startVisualElementMapper(slotName, friendlyLabel, templateId) {
+    // Hide mini HUD during mapping so it never interferes or captures clicks
+    const hud = document.getElementById("ziggyflow-floating-hud");
+    const wasHudDisplay = hud ? hud.style.display : "none";
+    if (hud) hud.style.display = "none";
+
     const existing = document.getElementById("ziggyflow-element-picker-overlay");
     if (existing) existing.remove();
 
     const overlay = document.createElement("div");
     overlay.id = "ziggyflow-element-picker-overlay";
+    overlay.setAttribute("data-ziggy-internal", "true");
     overlay.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       z-index: 2147483640; cursor: crosshair; pointer-events: none;
@@ -189,6 +207,7 @@
     `;
 
     const banner = document.createElement("div");
+    banner.setAttribute("data-ziggy-internal", "true");
     banner.style.cssText = `
       position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
       background: #141519; color: #fff; border: 1.5px solid #38bdf8;
@@ -202,6 +221,7 @@
 
     // Hover tooltip pill
     const tooltip = document.createElement("div");
+    tooltip.setAttribute("data-ziggy-internal", "true");
     tooltip.style.cssText = `
       position: fixed; display: none; z-index: 2147483646; pointer-events: none;
       background: #0f172a; color: #38bdf8; border: 1px solid #38bdf8;
@@ -212,8 +232,9 @@
 
     let lastHovered = null;
     const handleMouseMove = (e) => {
-      const el = e.target;
-      if (el && el !== overlay && el !== banner && el !== tooltip && !isExtensionElement(el)) {
+      const elements = document.elementsFromPoint(e.clientX, e.clientY);
+      const el = elements.find(item => item && !isExtensionElement(item) && item !== overlay && item !== banner && item !== tooltip);
+      if (el) {
         if (lastHovered && lastHovered !== el) {
           lastHovered.style.outline = "";
           lastHovered.style.boxShadow = "";
@@ -234,13 +255,13 @@
     };
 
     const handleClick = (e) => {
-      if (isExtensionElement(e.target) || e.target === banner || e.target === overlay || e.target === tooltip) {
-        return;
-      }
+      const elements = document.elementsFromPoint(e.clientX, e.clientY);
+      let targetEl = elements.find(item => item && !isExtensionElement(item) && item !== banner && item !== overlay && item !== tooltip);
+      
+      if (!targetEl) return;
       e.preventDefault();
       e.stopPropagation();
 
-      let targetEl = e.target;
       if (targetEl && !isExtensionElement(targetEl)) {
         // Smart-snap to input or button
         if (slotName.toLowerCase().includes("prompt")) {
@@ -310,6 +331,11 @@
     const handleKeyDown = (e) => { if (e.key === "Escape") cleanup(); };
 
     function cleanup() {
+      if (hud && wasHudDisplay && wasHudDisplay !== "none") {
+        hud.style.display = wasHudDisplay;
+      } else if (hud) {
+        hud.style.display = "block";
+      }
       if (lastHovered) { lastHovered.style.outline = ""; lastHovered.style.boxShadow = ""; }
       overlay.remove(); banner.remove(); tooltip.remove();
       window.removeEventListener("mousemove", handleMouseMove, true);
