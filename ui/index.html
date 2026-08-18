@@ -477,14 +477,22 @@
           </div>
 
           <!-- Click Strategy Selector -->
-          <div style="background:#18191f;border:1px solid #282a32;border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:11px;color:#94a3b8;font-weight:600;">⚡ Button Click Strategy:</span>
-            <select id="select-click-strategy" style="background:#121316;border:1px solid #374151;color:#a3e635;font-size:11px;font-weight:700;border-radius:5px;padding:3px 6px;">
-              <option value="standard">Mouse Click Chain (Recommended)</option>
-              <option value="coords">Physical Coordinate Click (X,Y %)</option>
-              <option value="enter">Keyboard Enter Keystroke</option>
-              <option value="double">Double Click / Trigger</option>
-            </select>
+          <div style="background:#18191f;border:1px solid #282a32;border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;color:#94a3b8;font-weight:600;">⚡ Automation Tool / Strategy:</span>
+              <select id="select-click-strategy" style="background:#121316;border:1px solid #374151;color:#a3e635;font-size:11px;font-weight:700;border-radius:5px;padding:3px 6px;">
+                <option value="enter">⚡ Direct Keyboard Enter (Instant / Zero-Mapping)</option>
+                <option value="standard">🖱️ Mouse Click Chain (Human Simulation)</option>
+                <option value="coords">📍 Physical Coordinate Click (X,Y % Viewport)</option>
+                <option value="double">⚡ Multi-Click & Double Click Burst</option>
+                <option value="react_fiber">⚛️ React 18 Fiber / ValueTracker Invoker</option>
+                <option value="automa_pipeline">🤖 Automa / Playwright Multi-Step Pipeline</option>
+                <option value="xpath_cascade">🧭 XPath & Deep Shadow-DOM Pierce</option>
+              </select>
+            </div>
+
+            <!-- Dynamic Tool Settings Card (Changes dynamically depending on selected tool) -->
+            <div id="strategy-dynamic-settings-card" style="background:#111216;border:1px solid #22252e;border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:8px;"></div>
           </div>
 
           <!-- Mapping Slots Rows -->

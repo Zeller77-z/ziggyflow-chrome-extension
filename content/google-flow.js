@@ -32,7 +32,7 @@
   // =============================================
   // MESSAGE ROUTER
   // =============================================
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     try {
       if (request.action === "GENERATE_PROMPT" && (!request.task.provider || request.task.provider === "flow")) {
         isTaskAborted = false;
@@ -57,14 +57,19 @@
 
       if (request.action === "TEST_DOM_ELEMENT_ACTION") {
         const slotData = request.template?.[request.slotName];
-        const el = resolveTemplateElement(slotData);
+        let el = resolveTemplateElement(slotData);
+        if (!el && request.slotName === "promptInput") el = await findExactPromptInput(2000);
+        if (!el && request.slotName === "generateButton") el = await findGenerateButton(null, 2000);
+
         if (el) {
           if (request.actionType === "highlight") {
             highlightElement(el, "#38bdf8");
             el.scrollIntoView({ behavior: "smooth", block: "center" });
+            showLiveToast(`👁 Testing Highlight: <${el.tagName.toLowerCase()}>`);
           } else if (request.actionType === "click") {
             highlightElement(el, "#a3e635");
-            clickButtonCleanly(el);
+            showLiveToast(`▶ Testing Strategy [${(request.template?.clickStrategy || 'standard').toUpperCase()}] on <${el.tagName.toLowerCase()}>`);
+            await executeConfiguredStrategy(el, request.template);
           }
           const rect = el.getBoundingClientRect();
           sendResponse({
@@ -73,6 +78,7 @@
             rect: `${Math.round(rect.width)}x${Math.round(rect.height)}`
           });
         } else {
+          showLiveToast(`⚠️ Element not found for ${request.slotName}`, true);
           sendResponse({ found: false });
         }
         return true;
@@ -1376,6 +1382,149 @@
     try { target.dispatchEvent(new MouseEvent("mouseup", baseUpInit)); } catch(e){}
     try { target.dispatchEvent(new MouseEvent("click", baseUpInit)); } catch(e){}
     try { target.click(); } catch(e){}
+  }
+
+  async function executeConfiguredStrategy(targetEl, template) {
+    if (!targetEl) return;
+    const strat = template?.clickStrategy || "enter";
+    const cfg = template?.strategyConfig?.[strat] || {};
+    console.log(`ZiggyFlow: Executing configured strategy [${strat}]`, cfg, targetEl);
+
+    if (strat === "enter") {
+      if (cfg.preDelay) await sleep(cfg.preDelay);
+      targetEl.focus();
+      
+      const keyInit = {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        charCode: 13,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        view: window,
+        shiftKey: cfg.modifier === "shift",
+        ctrlKey: cfg.modifier === "ctrl",
+        altKey: cfg.modifier === "alt"
+      };
+
+      targetEl.dispatchEvent(new KeyboardEvent("keydown", keyInit));
+      targetEl.dispatchEvent(new KeyboardEvent("keypress", keyInit));
+      targetEl.dispatchEvent(new KeyboardEvent("keyup", keyInit));
+
+      if (cfg.requestSubmit !== false) {
+        const form = targetEl.closest("form");
+        if (form && typeof form.requestSubmit === "function") {
+          try { form.requestSubmit(); } catch(e) {}
+        }
+      }
+
+      if (cfg.reactDispatch !== false) {
+        dispatchEnterInMainWorld();
+      }
+    } else if (strat === "standard") {
+      if (cfg.hoverDelay) await sleep(cfg.hoverDelay);
+      if (cfg.forceFocus !== false && typeof targetEl.focus === "function") {
+        try { targetEl.focus(); } catch(e) {}
+      }
+      dispatchFullClickChain(targetEl);
+      if (cfg.holdDuration) await sleep(cfg.holdDuration);
+    } else if (strat === "coords") {
+      const pctX = cfg.pctX !== undefined ? cfg.pctX : 0.88;
+      const pctY = cfg.pctY !== undefined ? cfg.pctY : 0.91;
+      const clientX = Math.round(pctX * window.innerWidth) + (cfg.offsetX || 0);
+      const clientY = Math.round(pctY * window.innerHeight) + (cfg.offsetY || 0);
+
+      showVisualReticleCrosshair(clientX, clientY);
+
+      const coordTarget = document.elementFromPoint(clientX, clientY) || targetEl;
+      if (coordTarget && !isExtensionElement(coordTarget)) {
+        dispatchFullClickChain(coordTarget);
+      }
+    } else if (strat === "double") {
+      const count = cfg.clickCount || 2;
+      const interval = cfg.burstInterval || 60;
+      for (let i = 0; i < count; i++) {
+        dispatchFullClickChain(targetEl);
+        if (i < count - 1) await sleep(interval);
+      }
+      if (cfg.dispatchEnterAfter !== false) {
+        const enterEvt = new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true });
+        targetEl.dispatchEvent(enterEvt);
+      }
+    } else if (strat === "react_fiber") {
+      syncReactStateInMainWorld();
+      dispatchEnterInMainWorld();
+      if (cfg.traverseFiber !== false) {
+        const code = `
+          try {
+            const btn = document.querySelector('[data-ziggy-generate="true"]') || document.querySelector('button[aria-label*="generate" i]');
+            if (btn) {
+              const key = Object.keys(btn).find(k => k.startsWith('__reactProps$') || k.startsWith('__reactEvents$'));
+              if (key && btn[key]?.onClick) {
+                btn[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} });
+              } else {
+                btn.click();
+              }
+            }
+          } catch(e) {}
+        `;
+        const script = document.createElement("script");
+        script.textContent = `(() => { ${code} })();`;
+        (document.head || document.documentElement).appendChild(script);
+        script.remove();
+      }
+    } else if (strat === "automa_pipeline") {
+      if (cfg.step1Focus !== false) {
+        targetEl.focus();
+        targetEl.scrollIntoView({ behavior: "instant", block: "center" });
+        await sleep(50);
+      }
+      if (cfg.step2Type !== false) {
+        document.execCommand("selectAll", false, undefined);
+        await sleep(30);
+      }
+      if (cfg.step3Enter !== false) {
+        targetEl.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+      }
+      if (cfg.step4BackupClick !== false) {
+        await sleep(100);
+        dispatchFullClickChain(targetEl);
+      }
+    } else if (strat === "xpath_cascade") {
+      let target = targetEl;
+      if (cfg.customXPath) {
+        try {
+          const res = document.evaluate(cfg.customXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+          if (res.singleNodeValue && !isExtensionElement(res.singleNodeValue)) {
+            target = res.singleNodeValue;
+          }
+        } catch(e) {}
+      }
+      if (cfg.filterNegatives !== false && isNegativeButton(target)) {
+        showLiveToast("⚠️ Action blocked: Target matched negative Back/Header filter", true);
+        return;
+      }
+      dispatchFullClickChain(target);
+    } else {
+      dispatchFullClickChain(targetEl);
+    }
+  }
+
+  function showVisualReticleCrosshair(x, y) {
+    const reticle = document.createElement("div");
+    reticle.style.cssText = `
+      position: fixed; left: ${x - 18}px; top: ${y - 18}px; width: 36px; height: 36px;
+      border: 2px solid #a3e635; border-radius: 50%; pointer-events: none; z-index: 2147483647;
+      box-shadow: 0 0 20px #a3e635, inset 0 0 10px #a3e635; animation: zfSpin 1s linear infinite;
+    `;
+    reticle.innerHTML = `
+      <div style="position:absolute;top:50%;left:0;width:100%;height:1px;background:#a3e635;"></div>
+      <div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:#a3e635;"></div>
+    `;
+    document.body.appendChild(reticle);
+    setTimeout(() => reticle.remove(), 1200);
   }
 
   function forceClickElement(el) {
