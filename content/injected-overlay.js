@@ -143,18 +143,18 @@
           <span id="zf-pill-status" style="background:#a3e635;color:#121316;padding:1px 5px;border-radius:6px;font-size:9.5px;font-weight:800;">Open</span>
         </div>
 
-        <!-- Ultra-Compact, Draggable Live Generation Floating Mini-Window (HIDDEN BY DEFAULT - ONLY SHOWS ON GENERATION) -->
+        <!-- Unified In-Page Mini Studio Window -->
         <div id="zf-mini-window" data-ziggy-internal="true" style="
           pointer-events: auto;
           display: none;
           position: fixed;
           ${posStyle}
-          width: 310px;
+          width: 330px;
           max-width: calc(100vw - 32px);
           background: #141519;
           border: 1px solid #282a32;
           border-radius: 14px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.92), 0 0 20px rgba(0,0,0,0.5);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.95), 0 0 25px rgba(0,0,0,0.6);
           overflow: hidden;
           flex-direction: column;
         ">
@@ -180,107 +180,156 @@
                 justify-content: center;
                 box-shadow: 0 0 8px rgba(190,242,100,0.5);
               ">
-                <span style="color:#121316;font-size:12px;font-weight:900;">✦</span>
+                <span style="color:#121316;font-size:11px;font-weight:900;">✦</span>
               </div>
-
-              <span style="font-weight:800;font-size:13px;color:#ffffff;letter-spacing:0.2px;">TobyFlow</span>
-              
-              <!-- Expand Button ⤢ -->
-              <button id="zf-btn-expand-gallery" class="zf-icon-btn" style="padding: 1px 5px; font-size: 10px;" title="Expand Results Gallery (⤢)">
-                ⤢
-              </button>
-
-              <span id="zf-mini-mode-badge" style="background:#78350f;color:#fbbf24;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:3px;display:none;">Manual</span>
+              <span style="font-weight:800;font-size:12.5px;color:#ffffff;">ZiggyFlow Mini</span>
             </div>
 
             <div style="display:flex;align-items:center;gap:4px;">
-              <span id="zf-mini-header-progress" style="font-size:11px;font-weight:600;color:#cbd5e1;">0/0 done</span>
+              <button id="zf-btn-toggle-sound" class="zf-icon-btn zf-icon-btn-lime" style="padding:2px 5px;" title="Toggle sound">🔔</button>
+              <button id="zf-btn-download-all" class="zf-icon-btn zf-icon-btn-lime" style="padding:2px 5px;" title="Download All Completed">⬇</button>
+              <button id="zf-btn-clear-all" class="zf-icon-btn" style="padding:2px 5px;" title="Clear Completed List">🧹</button>
+              <button id="zf-btn-minimize-mini" class="zf-icon-btn" style="padding:2px 5px;" title="Minimize to Corner Pill">_</button>
+              <button id="zf-btn-close-mini" class="zf-icon-btn" style="padding:2px 5px;" title="Close">✕</button>
+            </div>
+          </div>
+
+          <!-- Neon Divider Line -->
+          <div style="height: 2px; width: 100%; background: linear-gradient(90deg, #bef264 0%, #a3e635 100%);"></div>
+
+          <!-- 2. Studio Navigation Tabs -->
+          <div style="background:#111215;border-bottom:1px solid #1c1e24;padding:4px 8px;display:flex;gap:4px;align-items:center;justify-content:space-between;">
+            <div style="display:flex;gap:3px;">
+              <div class="zf-nav-tab active" data-zftab="gen" style="padding:4px 7px;font-size:10.5px;font-weight:700;color:#121316;background:#a3e635;cursor:pointer;border-radius:5px;">🎬 Studio</div>
+              <div class="zf-nav-tab" data-zftab="queue" style="padding:4px 7px;font-size:10.5px;font-weight:700;color:#94a3b8;cursor:pointer;border-radius:5px;">📋 Queue</div>
+              <div class="zf-nav-tab" data-zftab="gallery" style="padding:4px 7px;font-size:10.5px;font-weight:700;color:#94a3b8;cursor:pointer;border-radius:5px;">🖼️ Gallery</div>
+              <div class="zf-nav-tab" data-zftab="mapper" style="padding:4px 7px;font-size:10.5px;font-weight:700;color:#94a3b8;cursor:pointer;border-radius:5px;">🎯 Mapper</div>
+            </div>
+            <span id="zf-mini-header-progress" style="font-size:10px;font-weight:700;color:#a3e635;">0/0 done</span>
+          </div>
+
+          <!-- 3. TAB CONTENT PANES -->
+          <!-- PANE A: STUDIO GENERATOR (Identical to Side Panel) -->
+          <div id="zf-pane-gen" style="padding:10px;display:flex;flex-direction:column;gap:8px;background:#141519;">
+            <!-- Provider & Media Type Row -->
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="display:flex;gap:4px;">
+                <button class="zf-chip-btn active" id="zf-prov-flow" style="background:#202619;border:1px solid #a3e635;color:#a3e635;font-size:10px;font-weight:700;padding:3px 7px;border-radius:5px;cursor:pointer;">✦ Flow</button>
+                <button class="zf-chip-btn" id="zf-prov-chatgpt" style="background:#18191f;border:1px solid #2e3038;color:#cbd5e1;font-size:10px;font-weight:600;padding:3px 7px;border-radius:5px;cursor:pointer;">ChatGPT</button>
+                <button class="zf-chip-btn" id="zf-prov-grok" style="background:#18191f;border:1px solid #2e3038;color:#cbd5e1;font-size:10px;font-weight:600;padding:3px 7px;border-radius:5px;cursor:pointer;">Grok</button>
+              </div>
+              <div style="display:flex;gap:3px;">
+                <button class="zf-chip-btn active" id="zf-media-img" style="background:#202619;border:1px solid #a3e635;color:#a3e635;font-size:10px;font-weight:700;padding:3px 6px;border-radius:5px;cursor:pointer;">🖼️ Img</button>
+                <button class="zf-chip-btn" id="zf-media-vid" style="background:#18191f;border:1px solid #2e3038;color:#cbd5e1;font-size:10px;font-weight:600;padding:3px 6px;border-radius:5px;cursor:pointer;">🎬 Vid</button>
+              </div>
+            </div>
+
+            <!-- Prompt Input Box with Sync & AI Enhancer -->
+            <div style="position:relative;">
+              <textarea id="zf-mini-prompt-input" rows="3" placeholder="Describe your scene or enter multiple prompts (one per line)..." style="
+                width:100%;box-sizing:border-box;background:#0d0e11;border:1px solid #282a32;border-radius:8px;padding:8px 10px;color:#fff;font-size:11.5px;font-family:inherit;resize:vertical;outline:none;
+              "></textarea>
+              <div style="position:absolute;bottom:6px;right:6px;display:flex;gap:4px;align-items:center;">
+                <span id="zf-mini-prompt-count" style="font-size:9.5px;color:#94a3b8;background:#18191f;padding:1px 5px;border-radius:3px;">0 prompt(s)</span>
+                <button id="zf-mini-btn-enhance" class="zf-icon-btn zf-icon-btn-lime" style="padding:1px 5px;font-size:10px;" title="AI Prompt Enhancer">✨</button>
+              </div>
+            </div>
+
+            <!-- Model & Quantity Stepper -->
+            <div style="display:flex;gap:6px;align-items:center;">
+              <select id="zf-mini-select-model" style="flex:1;background:#18191f;border:1px solid #2e3038;color:#fff;font-size:10.5px;padding:4px 6px;border-radius:6px;outline:none;">
+                <option value="Nano Banana 2">Nano Banana 2</option>
+                <option value="Omni Flash">Omni Flash (Veo 3.1)</option>
+                <option value="Veo 3.1 Quality">Veo 3.1 Quality</option>
+                <option value="Imagen 3 Fast">Imagen 3 Fast</option>
+              </select>
               
-              <button id="zf-btn-toggle-sound" class="zf-icon-btn zf-icon-btn-lime" style="padding:2px 5px;" title="Toggle notification sound">
-                🔔
-              </button>
-              
-              <button id="zf-btn-download-all" class="zf-icon-btn zf-icon-btn-lime" style="padding:2px 5px;" title="Download All Completed">
-                ⬇
-              </button>
+              <div style="display:flex;align-items:center;background:#18191f;border:1px solid #2e3038;border-radius:6px;padding:2px 4px;gap:4px;">
+                <button id="zf-mini-qty-minus" style="background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:12px;font-weight:700;">-</button>
+                <span id="zf-mini-qty-val" style="font-size:11px;font-weight:700;color:#fff;min-width:14px;text-align:center;">1</span>
+                <button id="zf-mini-qty-plus" style="background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:12px;font-weight:700;">+</button>
+              </div>
+            </div>
 
-              <button id="zf-btn-clear-all" class="zf-icon-btn" style="padding:2px 5px;" title="Clear Completed List">
-                🧹
-              </button>
+            <!-- Aspect Ratio Chips -->
+            <div style="display:flex;gap:4px;justify-content:space-between;">
+              <button class="zf-chip-btn active" data-ratio="16:9" style="background:#202619;border:1px solid #a3e635;color:#a3e635;font-size:10px;font-weight:700;padding:3px 7px;border-radius:5px;cursor:pointer;">16:9</button>
+              <button class="zf-chip-btn" data-ratio="9:16" style="background:#18191f;border:1px solid #2e3038;color:#cbd5e1;font-size:10px;font-weight:600;padding:3px 7px;border-radius:5px;cursor:pointer;">9:16</button>
+              <button class="zf-chip-btn" data-ratio="1:1" style="background:#18191f;border:1px solid #2e3038;color:#cbd5e1;font-size:10px;font-weight:600;padding:3px 7px;border-radius:5px;cursor:pointer;">1:1</button>
+              <button class="zf-chip-btn" data-ratio="4:3" style="background:#18191f;border:1px solid #2e3038;color:#cbd5e1;font-size:10px;font-weight:600;padding:3px 7px;border-radius:5px;cursor:pointer;">4:3</button>
+              <button class="zf-chip-btn" data-ratio="3:4" style="background:#18191f;border:1px solid #2e3038;color:#cbd5e1;font-size:10px;font-weight:600;padding:3px 7px;border-radius:5px;cursor:pointer;">3:4</button>
+            </div>
 
-              <button id="zf-btn-minimize-mini" class="zf-icon-btn" style="padding:2px 5px;" title="Minimize to Corner Pill">
-                _
+            <!-- Submit Mode & Action Buttons -->
+            <div style="display:flex;gap:6px;align-items:center;margin-top:2px;">
+              <button id="zf-mini-btn-submit-mode" class="zf-chip-btn active" style="flex:1;background:#18191f;border:1px solid #374151;color:#facc15;font-size:10px;font-weight:700;padding:5px 6px;border-radius:6px;cursor:pointer;text-align:center;">⚡ Auto Submit</button>
+              <button id="zf-mini-btn-generate" style="
+                flex:2;background:linear-gradient(135deg,#bef264 0%,#84cc16 100%);color:#121316;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 15px rgba(190,242,100,0.3);
+              ">
+                <span>🚀</span> <span id="zf-mini-btn-gen-text">Generate</span>
               </button>
-
-              <button id="zf-btn-close-mini" class="zf-icon-btn" style="padding:2px 5px;" title="Close and Hide">
-                ✕
-              </button>
+              <button id="zf-mini-btn-stop" class="zf-icon-btn zf-icon-btn-danger" style="display:none;padding:7px 10px;" title="Stop generation">⏹</button>
             </div>
           </div>
 
-          <!-- Neon Lime Horizontal Divider Line -->
-          <div style="height: 2px; width: 100%; background: linear-gradient(90deg, #bef264 0%, #a3e635 100%); box-shadow: 0 0 8px rgba(190,242,100,0.6);"></div>
-
-          <!-- 2. Status Summary Counts Sub-bar -->
-          <div id="zf-sub-bar" style="
-            background: #111215;
-            border-bottom: 1px solid #1c1e24;
-            padding: 5px 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 10px;
-            color: #94a3b8;
-          ">
-            <span id="zf-stat-sent">▶ 0 sent</span>
-            <span>•</span>
-            <span id="zf-stat-generating" style="color:#38bdf8;">0 gen</span>
-            <span>•</span>
-            <span id="zf-stat-waiting" style="color:#facc15;">0 wait</span>
-            <span>•</span>
-            <span id="zf-stat-done" style="color:#10b981;">0 done</span>
-            <span>•</span>
-            <span id="zf-stat-failed" style="color:#ef4444;">0 fail</span>
-          </div>
-
-          <!-- 3. Active Generation Progress Bar Row -->
-          <div style="
-            padding: 6px 10px;
-            background: #15161a;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6px;
-          ">
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span style="color:#38bdf8;font-size:10px;">●</span>
-              <span id="zf-active-status-text" style="font-size:11px;font-weight:700;color:#ffffff;">Auto Gen</span>
+          <!-- PANE B: LIVE QUEUE & STOPWATCH HUD -->
+          <div id="zf-pane-queue" style="display:none;flex-direction:column;background:#141519;">
+            <!-- Status Summary Row -->
+            <div style="background:#111215;border-bottom:1px solid #1c1e24;padding:5px 10px;display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#94a3b8;">
+              <span id="zf-stat-sent">▶ 0 sent</span>
+              <span>•</span>
+              <span id="zf-stat-generating" style="color:#38bdf8;">0 gen</span>
+              <span>•</span>
+              <span id="zf-stat-waiting" style="color:#facc15;">0 wait</span>
+              <span>•</span>
+              <span id="zf-stat-done" style="color:#10b981;">0 done</span>
+              <span>•</span>
+              <span id="zf-stat-failed" style="color:#ef4444;">0 fail</span>
             </div>
 
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span style="background:#202227;color:#94a3b8;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:3px;">WEB</span>
-              <span id="zf-badge-status-pill" style="background:#064e3b;color:#34d399;font-size:10px;font-weight:800;padding:1px 6px;border-radius:3px;">Done</span>
-              <span id="zf-live-render-time" style="font-size:10px;color:#94a3b8;font-weight:500;">00:00</span>
-              <span id="zf-live-render-pct" style="font-size:10px;font-weight:700;color:#e2e8f0;">100%</span>
-              <span style="color:#64748b;font-size:10px;cursor:pointer;padding:0 3px;" id="zf-btn-collapse-list">^</span>
+            <!-- Live Active Render Bar -->
+            <div style="padding:6px 10px;background:#15161a;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <div style="display:flex;align-items:center;gap:5px;">
+                <span style="color:#38bdf8;font-size:10px;">●</span>
+                <span id="zf-active-status-text" style="font-size:11px;font-weight:700;color:#ffffff;">Live Tracking</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;">
+                <span id="zf-badge-status-pill" style="background:#064e3b;color:#34d399;font-size:10px;font-weight:800;padding:1px 6px;border-radius:3px;">Done</span>
+                <span id="zf-live-render-time" style="font-size:10px;color:#94a3b8;">00:00</span>
+                <span id="zf-live-render-pct" style="font-size:10px;font-weight:700;color:#e2e8f0;">100%</span>
+              </div>
+            </div>
+
+            <!-- Live Task Items List -->
+            <div id="zf-mini-task-list" style="max-height:180px;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:5px;background:#141519;">
+              <div style="color:#64748b;font-size:11px;text-align:center;padding:10px 0;">✨ Ready. Enter prompt and click Generate.</div>
             </div>
           </div>
 
-          <!-- Thin Blue Accent Divider Line -->
-          <div style="height: 1px; width: 100%; background: #1d4ed8;"></div>
+          <!-- PANE C: GALLERY / 4K ASSETS -->
+          <div id="zf-pane-gallery" style="display:none;padding:8px;flex-direction:column;gap:8px;background:#141519;max-height:240px;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;font-weight:700;color:#cbd5e1;">Generated Assets (4K)</span>
+              <button id="zf-mini-btn-scan-canvas" class="zf-icon-btn zf-icon-btn-lime" style="font-size:10px;padding:2px 6px;">🔍 Scan Media</button>
+            </div>
+            <div id="zf-mini-gallery-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"></div>
+          </div>
 
-          <!-- 4. Live Task Items List -->
-          <div id="zf-mini-task-list" style="
-            max-height: 200px;
-            overflow-y: auto;
-            padding: 6px 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            background: #141519;
-          ">
-            <div style="color:#64748b;font-size:11px;text-align:center;padding:10px 0;">
-              ✨ Ready. Enter prompt and click Generate.
+          <!-- PANE D: DOM TEMPLATES & MAPPER -->
+          <div id="zf-pane-mapper" style="display:none;padding:10px;flex-direction:column;gap:8px;background:#141519;">
+            <div style="font-size:11px;font-weight:700;color:#cbd5e1;">🎯 Visual DOM Templates & Mapper</div>
+            <select id="zf-mini-select-template" style="background:#18191f;border:1px solid #2e3038;color:#fff;font-size:11px;padding:4px 6px;border-radius:6px;outline:none;"></select>
+            
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px;">
+              <button class="zf-icon-btn" id="zf-mini-pick-prompt" style="justify-content:space-between;padding:5px 8px;font-size:10.5px;color:#cbd5e1;cursor:pointer;">
+                <span>✍️ Map Prompt Box</span> <span style="color:#a3e635;font-weight:700;">📍 Map</span>
+              </button>
+              <button class="zf-icon-btn" id="zf-mini-pick-generate" style="justify-content:space-between;padding:5px 8px;font-size:10.5px;color:#cbd5e1;cursor:pointer;">
+                <span>🚀 Map Generate Btn</span> <span style="color:#a3e635;font-weight:700;">📍 Map</span>
+              </button>
+              <button class="zf-icon-btn" id="zf-mini-pick-ratio" style="justify-content:space-between;padding:5px 8px;font-size:10.5px;color:#cbd5e1;cursor:pointer;">
+                <span>📐 Map Ratio Area</span> <span style="color:#a3e635;font-weight:700;">📍 Map</span>
+              </button>
             </div>
           </div>
         </div>
@@ -456,6 +505,132 @@
     const btnCollapse = host.querySelector("#zf-btn-collapse-list");
     const taskList = host.querySelector("#zf-mini-task-list");
 
+    // Tab switching
+    const tabs = host.querySelectorAll(".zf-nav-tab");
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        const target = tab.getAttribute("data-zftab");
+        tabs.forEach(t => {
+          t.classList.remove("active");
+          t.style.color = "#94a3b8";
+          t.style.background = "transparent";
+        });
+        tab.classList.add("active");
+        tab.style.color = "#121316";
+        tab.style.background = "#a3e635";
+
+        ["gen", "queue", "gallery", "mapper"].forEach(pane => {
+          const el = host.querySelector(`#zf-pane-${pane}`);
+          if (el) el.style.display = pane === target ? "flex" : "none";
+        });
+
+        if (target === "gallery") renderMiniGallery();
+        if (target === "mapper") populateTemplateSelector();
+      });
+    });
+
+    // Prompt input count & two-way sync
+    const promptInput = host.querySelector("#zf-mini-prompt-input");
+    const promptCount = host.querySelector("#zf-mini-prompt-count");
+    promptInput?.addEventListener("input", (e) => {
+      const val = e.target.value;
+      const count = val.trim() ? val.trim().split(/\r?\n/).filter(l => l.trim().length > 0).length : 0;
+      if (promptCount) promptCount.innerText = `${count} prompt(s)`;
+      chrome.storage.local.set({ ziggyPrompt: val });
+    });
+
+    // Ratio chips selection
+    const ratioBtns = host.querySelectorAll("[data-ratio]");
+    ratioBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        ratioBtns.forEach(b => {
+          b.classList.remove("active");
+          b.style.background = "#18191f";
+          b.style.borderColor = "#2e3038";
+          b.style.color = "#cbd5e1";
+        });
+        btn.classList.add("active");
+        btn.style.background = "#202619";
+        btn.style.borderColor = "#a3e635";
+        btn.style.color = "#a3e635";
+        activeRatio = btn.getAttribute("data-ratio");
+        chrome.storage.local.set({ ziggyRatio: activeRatio });
+      });
+    });
+
+    // Quantity stepper
+    const qtyVal = host.querySelector("#zf-mini-qty-val");
+    host.querySelector("#zf-mini-qty-minus")?.addEventListener("click", () => {
+      quantity = Math.max(1, quantity - 1);
+      if (qtyVal) qtyVal.innerText = quantity;
+      chrome.storage.local.set({ ziggyQuantity: quantity });
+    });
+    host.querySelector("#zf-mini-qty-plus")?.addEventListener("click", () => {
+      quantity = Math.min(20, quantity + 1);
+      if (qtyVal) qtyVal.innerText = quantity;
+      chrome.storage.local.set({ ziggyQuantity: quantity });
+    });
+
+    // Submit Mode toggle
+    const btnSubmitMode = host.querySelector("#zf-mini-btn-submit-mode");
+    btnSubmitMode?.addEventListener("click", () => {
+      submitMode = submitMode === "auto" ? "manual" : "auto";
+      btnSubmitMode.innerText = submitMode === "auto" ? "⚡ Auto Submit" : "⏱ Manual Submit";
+      btnSubmitMode.style.color = submitMode === "auto" ? "#facc15" : "#38bdf8";
+      chrome.storage.local.set({ ziggySubmitMode: submitMode });
+    });
+
+    // Generate Button in Mini Studio
+    const btnGen = host.querySelector("#zf-mini-btn-generate");
+    btnGen?.addEventListener("click", () => {
+      executeMiniStudioGeneration();
+    });
+
+    // Prompt Enhancer
+    host.querySelector("#zf-mini-btn-enhance")?.addEventListener("click", () => {
+      if (promptInput && promptInput.value.trim()) {
+        promptInput.value = promptInput.value.trim() + ", 8k resolution, photorealistic, octane render, masterpiece, ultra-detailed";
+        chrome.storage.local.set({ ziggyPrompt: promptInput.value });
+      }
+    });
+
+    // Mapper triggers in Mini Studio
+    host.querySelector("#zf-mini-pick-prompt")?.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ action: "START_VISUAL_ELEMENT_MAPPER", slotName: "promptInput", friendlyLabel: "Prompt Box" });
+    });
+    host.querySelector("#zf-mini-pick-generate")?.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ action: "START_VISUAL_ELEMENT_MAPPER", slotName: "generateButton", friendlyLabel: "Generate Button" });
+    });
+    host.querySelector("#zf-mini-pick-ratio")?.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ action: "START_VISUAL_ELEMENT_MAPPER", slotName: "aspectRatio", friendlyLabel: "Aspect Ratio" });
+    });
+
+    // Storage listener to sync from Sidepanel in real-time
+    chrome.storage.onChanged.addListener((changes) => {
+      if (changes.ziggyPrompt && promptInput && promptInput.value !== changes.ziggyPrompt.newValue) {
+        promptInput.value = changes.ziggyPrompt.newValue || "";
+        const count = promptInput.value.trim() ? promptInput.value.trim().split(/\r?\n/).filter(l => l.trim().length > 0).length : 0;
+        if (promptCount) promptCount.innerText = `${count} prompt(s)`;
+      }
+      if (changes.ziggyRatio) {
+        activeRatio = changes.ziggyRatio.newValue;
+        ratioBtns.forEach(b => {
+          const isAct = b.getAttribute("data-ratio") === activeRatio;
+          b.classList.toggle("active", isAct);
+          b.style.background = isAct ? "#202619" : "#18191f";
+          b.style.borderColor = isAct ? "#a3e635" : "#2e3038";
+          b.style.color = isAct ? "#a3e635" : "#cbd5e1";
+        });
+      }
+      if (changes.ziggyQuantity && qtyVal) {
+        quantity = changes.ziggyQuantity.newValue;
+        qtyVal.innerText = quantity;
+      }
+      if (changes.activeDomTemplateId) {
+        populateTemplateSelector();
+      }
+    });
+
     pill?.addEventListener("click", () => {
       mini.style.display = "flex";
       pill.style.display = "none";
@@ -544,6 +719,91 @@
       if (msg.action === "QUEUE_FINISHED") {
         onQueueFinished();
       }
+    });
+  }
+
+  function populateTemplateSelector() {
+    const select = document.getElementById("zf-mini-select-template");
+    if (!select) return;
+    chrome.storage.local.get(['domTemplates', 'activeDomTemplateId'], (res) => {
+      const templates = res.domTemplates || {};
+      const activeId = res.activeDomTemplateId || 'default';
+      select.innerHTML = '';
+      Object.values(templates).forEach(tpl => {
+        const opt = document.createElement("option");
+        opt.value = tpl.id;
+        opt.innerText = tpl.name;
+        if (tpl.id === activeId) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.onchange = (e) => {
+        chrome.storage.local.set({ activeDomTemplateId: e.target.value });
+      };
+    });
+  }
+
+  async function executeMiniStudioGeneration() {
+    const input = document.getElementById("zf-mini-prompt-input");
+    const raw = input?.value.trim();
+    if (!raw) {
+      alert("Please enter a prompt first.");
+      return;
+    }
+
+    const prompts = raw.split(/\r?\n/).filter(p => p.trim().length > 0);
+    const tasks = [];
+
+    for (let q = 0; q < quantity; q++) {
+      for (const p of prompts) {
+        tasks.push({
+          id: "gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+          prompt: p,
+          provider: activeProvider,
+          type: mediaType,
+          model: activeModel,
+          aspectRatio: activeRatio,
+          quantity: quantity,
+          submitMode: submitMode,
+          createdAt: Date.now()
+        });
+      }
+    }
+
+    const queueTab = document.querySelector('[data-zftab="queue"]');
+    if (queueTab) queueTab.click();
+
+    chrome.runtime.sendMessage({
+      action: "ENQUEUE_BATCH",
+      payload: { tasks }
+    });
+  }
+
+  function renderMiniGallery() {
+    const grid = document.getElementById("zf-mini-gallery-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    if (galleryHistoryTasks.length === 0) {
+      grid.innerHTML = `<div style="grid-column:1/3;color:#64748b;font-size:11px;text-align:center;padding:12px;">No generated media yet.</div>`;
+      return;
+    }
+
+    galleryHistoryTasks.slice(0, 8).forEach(t => {
+      const item = document.createElement("div");
+      item.style.cssText = `
+        position: relative; aspect-ratio: 16/9; background: #0b0f19; border-radius: 6px; overflow: hidden; border: 1px solid #282a32;
+      `;
+      item.innerHTML = `
+        <img src="${t.mediaUrl}" style="width:100%;height:100%;object-fit:cover;" />
+        <button class="zf-icon-btn zf-icon-btn-lime" style="position:absolute;bottom:4px;right:4px;padding:2px 5px;font-size:9px;">⬇</button>
+      `;
+      item.querySelector("button")?.addEventListener("click", () => {
+        chrome.runtime.sendMessage({
+          action: "TRIGGER_DOWNLOAD",
+          payload: { url: t.mediaUrl, prompt: t.prompt, provider: "Google Flow", resolution: "4K" }
+        });
+      });
+      grid.appendChild(item);
     });
   }
 

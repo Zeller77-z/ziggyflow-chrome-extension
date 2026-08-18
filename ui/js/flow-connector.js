@@ -132,7 +132,25 @@ window.FlowConnector = {
 
     // 3. Live Prompt Counter & Multi-Prompt Toggle
     const promptInput = document.getElementById("gen-prompt-input");
-    promptInput?.addEventListener("input", () => this.updatePromptCount());
+    promptInput?.addEventListener("input", () => {
+      this.updatePromptCount();
+      chrome.storage.local.set({ ziggyPrompt: promptInput.value });
+    });
+
+    // Sync from storage
+    chrome.storage.local.get(["ziggyPrompt"], (res) => {
+      if (res?.ziggyPrompt && promptInput) {
+        promptInput.value = res.ziggyPrompt;
+        this.updatePromptCount();
+      }
+    });
+
+    chrome.storage.onChanged.addListener((changes) => {
+      if (changes.ziggyPrompt && promptInput && promptInput.value !== changes.ziggyPrompt.newValue) {
+        promptInput.value = changes.ziggyPrompt.newValue || "";
+        this.updatePromptCount();
+      }
+    });
 
     document.getElementById("multi-prompt-toggle-wrap")?.addEventListener("click", () => {
       const toggle = document.getElementById("toggle-multi-prompt");
