@@ -128,14 +128,39 @@ class BackgroundController {
         break;
 
       case "TRIGGER_ELEMENT_PICKER":
+      case "START_VISUAL_ELEMENT_MAPPER":
         chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-          if (tabs[0]?.id) {
-            await this.injectScriptIfNeeded(tabs[0].id, "content/google-flow.js");
-            chrome.tabs.sendMessage(tabs[0].id, {
-              action: "START_ELEMENT_PICKER",
-              targetType: payload?.targetType || "generate"
+          let targetTab = tabs[0];
+          if (!targetTab) {
+            const allTabs = await chrome.tabs.query({});
+            targetTab = allTabs.find(t => t.url && (t.url.includes("google") || t.url.includes("flow") || t.url.includes("aitestkitchen")));
+          }
+          if (targetTab?.id) {
+            await this.injectScriptIfNeeded(targetTab.id, "content/google-flow.js");
+            chrome.tabs.sendMessage(targetTab.id, {
+              action: "START_VISUAL_ELEMENT_MAPPER",
+              slotName: payload?.slotName || request.slotName || "generateButton",
+              friendlyLabel: payload?.friendlyLabel || request.friendlyLabel || "Generate Button",
+              templateId: payload?.templateId || request.templateId || "default"
             }, (res) => {
               sendResponse(res || { success: true });
+            });
+          } else {
+            sendResponse({ success: false, error: "No active Google Flow tab" });
+          }
+        });
+        break;
+
+      case "TEST_DOM_ELEMENT_ACTION":
+        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+          let targetTab = tabs[0];
+          if (!targetTab) {
+            const allTabs = await chrome.tabs.query({});
+            targetTab = allTabs.find(t => t.url && (t.url.includes("google") || t.url.includes("flow") || t.url.includes("aitestkitchen")));
+          }
+          if (targetTab?.id) {
+            chrome.tabs.sendMessage(targetTab.id, request, (res) => {
+              sendResponse(res || { success: false });
             });
           } else {
             sendResponse({ success: false, error: "No active tab" });

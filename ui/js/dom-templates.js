@@ -280,16 +280,34 @@ window.DomTemplatesManager = {
   },
 
   async triggerVisualElementMapper(slotName, friendlyLabel) {
-    const tabs = await chrome.tabs.query({});
-    const targetTab = tabs.find(t => t.url && (t.url.includes('labs.google') || t.url.includes('aitestkitchen')));
+    let targetTab = null;
+    try {
+      const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (activeTabs[0]?.url && (activeTabs[0].url.includes("google") || activeTabs[0].url.includes("flow") || activeTabs[0].url.includes("aitestkitchen"))) {
+        targetTab = activeTabs[0];
+      }
+    } catch(e) {}
+
+    if (!targetTab) {
+      const allTabs = await chrome.tabs.query({});
+      targetTab = allTabs.find(t => t.url && (t.url.includes("labs.google") || t.url.includes("aitestkitchen") || t.url.includes("google.com")));
+    }
 
     if (!targetTab) {
       window.AutoFlow.showToast('⚠️ Please open a Google Flow tab first to visually map elements.', 'error');
       return;
     }
 
-    window.AutoFlow.showToast(`📍 Switch to Google Flow tab and click on: ${friendlyLabel}`, 'info');
+    // Switch focus to target Google Flow tab
+    try {
+      if (targetTab.id) {
+        chrome.tabs.update(targetTab.id, { active: true });
+      }
+    } catch(e) {}
 
+    window.AutoFlow.showToast(`📍 Switched to Google Flow! Hover and click on: ${friendlyLabel}`, 'info');
+
+    // Send to tab directly
     chrome.tabs.sendMessage(targetTab.id, {
       action: 'START_VISUAL_ELEMENT_MAPPER',
       slotName: slotName,
@@ -297,14 +315,30 @@ window.DomTemplatesManager = {
       templateId: this.activeTemplateId
     }, (res) => {
       if (chrome.runtime.lastError) {
-        window.AutoFlow.showToast('⚠️ Could not connect to Google Flow tab. Please refresh Google Flow.', 'error');
+        // Fallback to background routing
+        chrome.runtime.sendMessage({
+          action: 'START_VISUAL_ELEMENT_MAPPER',
+          slotName: slotName,
+          friendlyLabel: friendlyLabel,
+          templateId: this.activeTemplateId
+        });
       }
     });
   },
 
   async testElementAction(slotName, actionType) {
-    const tabs = await chrome.tabs.query({});
-    const targetTab = tabs.find(t => t.url && (t.url.includes('labs.google') || t.url.includes('aitestkitchen')));
+    let targetTab = null;
+    try {
+      const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (activeTabs[0]?.url && (activeTabs[0].url.includes("google") || activeTabs[0].url.includes("flow") || activeTabs[0].url.includes("aitestkitchen"))) {
+        targetTab = activeTabs[0];
+      }
+    } catch(e) {}
+
+    if (!targetTab) {
+      const allTabs = await chrome.tabs.query({});
+      targetTab = allTabs.find(t => t.url && (t.url.includes("labs.google") || t.url.includes("aitestkitchen") || t.url.includes("google.com")));
+    }
 
     if (!targetTab) {
       window.AutoFlow.showToast('⚠️ Please open Google Flow to test.', 'error');
@@ -319,7 +353,7 @@ window.DomTemplatesManager = {
       template: tpl
     }, (res) => {
       if (chrome.runtime.lastError) {
-        window.AutoFlow.showToast('⚠️ Could not connect to Google Flow tab.', 'error');
+        window.AutoFlow.showToast('⚠️ Could not connect to Google Flow tab. Please refresh the page.', 'error');
         return;
       }
       if (res?.found) {

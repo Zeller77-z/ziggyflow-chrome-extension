@@ -178,13 +178,13 @@
     overlay.id = "ziggyflow-element-picker-overlay";
     overlay.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 2147483640; cursor: crosshair; pointer-events: auto;
-      background: rgba(0, 0, 0, 0.2);
+      z-index: 2147483640; cursor: crosshair; pointer-events: none;
+      background: rgba(0, 0, 0, 0.15);
     `;
 
     const banner = document.createElement("div");
     banner.style.cssText = `
-      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
       background: #141519; color: #fff; border: 1.5px solid #38bdf8;
       padding: 10px 24px; border-radius: 9999px; font-weight: 700; font-size: 13px;
       z-index: 2147483645; pointer-events: none;
@@ -206,10 +206,7 @@
 
     let lastHovered = null;
     const handleMouseMove = (e) => {
-      overlay.style.pointerEvents = "none";
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      overlay.style.pointerEvents = "auto";
-
+      const el = e.target;
       if (el && el !== overlay && el !== banner && el !== tooltip && !isExtensionElement(el)) {
         if (lastHovered && lastHovered !== el) {
           lastHovered.style.outline = "";
@@ -231,12 +228,14 @@
     };
 
     const handleClick = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      overlay.style.pointerEvents = "none";
-      let targetEl = document.elementFromPoint(e.clientX, e.clientY);
-      overlay.style.pointerEvents = "auto";
+      if (isExtensionElement(e.target) || e.target === banner || e.target === overlay || e.target === tooltip) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
 
-      if (targetEl && targetEl !== overlay && targetEl !== banner && !isExtensionElement(targetEl)) {
+      let targetEl = e.target;
+      if (targetEl && !isExtensionElement(targetEl)) {
         // Smart-snap to input or button
         if (slotName.toLowerCase().includes("prompt")) {
           const innerInput = targetEl.querySelector('textarea, input[type="text"], [contenteditable="true"]') ||
@@ -257,7 +256,7 @@
           clientY: Math.round(rect.top)
         };
 
-        const tagLabel = targetEl.tagName.toUpperCase() + (targetEl.id ? `#${targetEl.id}` : (targetEl.className ? `.${targetEl.className.split(' ')[0]}` : ''));
+        const tagLabel = targetEl.tagName.toUpperCase() + (targetEl.id ? `#${targetEl.id}` : (targetEl.className ? `.${String(targetEl.className).split(' ')[0]}` : ''));
         const mappedData = {
           selector: selector,
           xpath: xpath,
@@ -270,7 +269,17 @@
         highlightElement(targetEl, "#a3e635");
         showLiveToast(`✅ Mapped ${friendlyLabel || slotName}!`);
 
-        // Send to ZiggyFlow UI to save in active template
+        // Save directly to storage
+        chrome.storage.local.get(['domTemplates', 'activeDomTemplateId'], (res) => {
+          const tpls = res.domTemplates || {};
+          const actId = res.activeDomTemplateId || templateId || 'default';
+          if (tpls[actId]) {
+            tpls[actId][slotName] = mappedData;
+            chrome.storage.local.set({ domTemplates: tpls });
+          }
+        });
+
+        // Send to ZiggyFlow UI to update active template display
         chrome.runtime.sendMessage({
           action: "ELEMENT_MAPPED_SUCCESS",
           payload: {
@@ -288,16 +297,18 @@
     function cleanup() {
       if (lastHovered) { lastHovered.style.outline = ""; lastHovered.style.boxShadow = ""; }
       overlay.remove(); banner.remove(); tooltip.remove();
-      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mousemove", handleMouseMove, true);
       window.removeEventListener("click", handleClick, true);
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown, true);
     }
 
-    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove, true);
     window.addEventListener("click", handleClick, true);
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
     document.body.appendChild(overlay);
   }
+
+  window.__zf_startMapper = startVisualElementMapper;
 
   function generateUniqueSelector(el) {
     if (el.id) return `#${CSS.escape(el.id)}`;
