@@ -315,19 +315,50 @@
             <div id="zf-mini-gallery-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"></div>
           </div>
 
-          <!-- PANE D: DOM TEMPLATES & MAPPER -->
-          <div id="zf-pane-mapper" style="display:none;padding:10px;flex-direction:column;gap:8px;background:#141519;">
-            <div style="font-size:11px;font-weight:700;color:#cbd5e1;">🎯 Visual DOM Templates & Mapper</div>
-            <select id="zf-mini-select-template" style="background:#18191f;border:1px solid #2e3038;color:#fff;font-size:11px;padding:4px 6px;border-radius:6px;outline:none;"></select>
+          <!-- PANE D: DOM TEMPLATES & MAPPER (Unified In-Page Studio) -->
+          <div id="zf-pane-mapper" style="display:none;padding:10px;flex-direction:column;gap:8px;background:#141519;max-height:260px;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;font-weight:700;color:#cbd5e1;">🎯 DOM Templates & Engines</span>
+              <select id="zf-mini-select-template" style="background:#18191f;border:1px solid #2e3038;color:#fff;font-size:10.5px;padding:3px 6px;border-radius:5px;outline:none;max-width:140px;"></select>
+            </div>
+
+            <!-- Mini Strategy Tool Selector -->
+            <div style="background:#18191f;border:1px solid #282a32;border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:6px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">Engine:</span>
+                <select id="zf-mini-select-strategy" style="background:#121316;border:1px solid #374151;color:#a3e635;font-size:10px;font-weight:700;border-radius:4px;padding:2px 5px;">
+                  <option value="enter">⚡ Direct Enter (Zero-Map)</option>
+                  <option value="standard">🖱️ Mouse Click Chain</option>
+                  <option value="coords">📍 Viewport Coords (%)</option>
+                  <option value="double">⚡ Multi-Click Burst</option>
+                  <option value="react_fiber">⚛️ React 18 Fiber</option>
+                  <option value="automa_pipeline">🤖 Automa Pipeline</option>
+                  <option value="xpath_cascade">🧭 XPath & Shadow-DOM</option>
+                </select>
+              </div>
+
+              <div id="zf-mini-strategy-chips" style="display:flex;gap:3px;flex-wrap:wrap;">
+                <button type="button" class="zf-chip-btn active" data-ministrat="enter" style="background:#202619;border:1px solid #a3e635;color:#a3e635;font-size:9.5px;font-weight:700;padding:2px 5px;border-radius:4px;cursor:pointer;">⚡ Enter</button>
+                <button type="button" class="zf-chip-btn" data-ministrat="standard" style="background:#141519;border:1px solid #2e3038;color:#cbd5e1;font-size:9.5px;font-weight:600;padding:2px 5px;border-radius:4px;cursor:pointer;">🖱️ Mouse</button>
+                <button type="button" class="zf-chip-btn" data-ministrat="coords" style="background:#141519;border:1px solid #2e3038;color:#cbd5e1;font-size:9.5px;font-weight:600;padding:2px 5px;border-radius:4px;cursor:pointer;">📍 Coords</button>
+                <button type="button" class="zf-chip-btn" data-ministrat="double" style="background:#141519;border:1px solid #2e3038;color:#cbd5e1;font-size:9.5px;font-weight:600;padding:2px 5px;border-radius:4px;cursor:pointer;">⚡ Burst</button>
+                <button type="button" class="zf-chip-btn" data-ministrat="react_fiber" style="background:#141519;border:1px solid #2e3038;color:#cbd5e1;font-size:9.5px;font-weight:600;padding:2px 5px;border-radius:4px;cursor:pointer;">⚛️ Fiber</button>
+                <button type="button" class="zf-chip-btn" data-ministrat="automa_pipeline" style="background:#141519;border:1px solid #2e3038;color:#cbd5e1;font-size:9.5px;font-weight:600;padding:2px 5px;border-radius:4px;cursor:pointer;">🤖 Pipeline</button>
+                <button type="button" class="zf-chip-btn" data-ministrat="xpath_cascade" style="background:#141519;border:1px solid #2e3038;color:#cbd5e1;font-size:9.5px;font-weight:600;padding:2px 5px;border-radius:4px;cursor:pointer;">🧭 XPath</button>
+              </div>
+
+              <!-- Mini Dynamic Settings Container -->
+              <div id="zf-mini-strategy-dynamic-card" style="background:#111216;border:1px solid #22252e;border-radius:5px;padding:6px;display:flex;flex-direction:column;gap:6px;"></div>
+            </div>
             
-            <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px;">
-              <button class="zf-icon-btn" id="zf-mini-pick-prompt" style="justify-content:space-between;padding:5px 8px;font-size:10.5px;color:#cbd5e1;cursor:pointer;">
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:2px;">
+              <button class="zf-icon-btn" id="zf-mini-pick-prompt" style="justify-content:space-between;padding:4px 8px;font-size:10px;color:#cbd5e1;cursor:pointer;">
                 <span>✍️ Map Prompt Box</span> <span style="color:#a3e635;font-weight:700;">📍 Map</span>
               </button>
-              <button class="zf-icon-btn" id="zf-mini-pick-generate" style="justify-content:space-between;padding:5px 8px;font-size:10.5px;color:#cbd5e1;cursor:pointer;">
+              <button class="zf-icon-btn" id="zf-mini-pick-generate" style="justify-content:space-between;padding:4px 8px;font-size:10px;color:#cbd5e1;cursor:pointer;">
                 <span>🚀 Map Generate Btn</span> <span style="color:#a3e635;font-weight:700;">📍 Map</span>
               </button>
-              <button class="zf-icon-btn" id="zf-mini-pick-ratio" style="justify-content:space-between;padding:5px 8px;font-size:10.5px;color:#cbd5e1;cursor:pointer;">
+              <button class="zf-icon-btn" id="zf-mini-pick-ratio" style="justify-content:space-between;padding:4px 8px;font-size:10px;color:#cbd5e1;cursor:pointer;">
                 <span>📐 Map Ratio Area</span> <span style="color:#a3e635;font-weight:700;">📍 Map</span>
               </button>
             </div>
@@ -724,7 +755,9 @@
 
   function populateTemplateSelector() {
     const select = document.getElementById("zf-mini-select-template");
+    const stratSelect = document.getElementById("zf-mini-select-strategy");
     if (!select) return;
+
     chrome.storage.local.get(['domTemplates', 'activeDomTemplateId'], (res) => {
       const templates = res.domTemplates || {};
       const activeId = res.activeDomTemplateId || 'default';
@@ -736,10 +769,111 @@
         if (tpl.id === activeId) opt.selected = true;
         select.appendChild(opt);
       });
+
+      const currentTpl = templates[activeId] || templates['default'] || {};
+      const currentStrat = currentTpl.clickStrategy || 'enter';
+      if (stratSelect) stratSelect.value = currentStrat;
+
+      updateMiniChips(currentStrat);
+      renderMiniStrategySettings(currentStrat, templates, activeId);
+
       select.onchange = (e) => {
         chrome.storage.local.set({ activeDomTemplateId: e.target.value });
+        populateTemplateSelector();
       };
+
+      stratSelect.onchange = (e) => {
+        const strat = e.target.value;
+        if (templates[activeId]) {
+          templates[activeId].clickStrategy = strat;
+          chrome.storage.local.set({ domTemplates: templates });
+        }
+        updateMiniChips(strat);
+        renderMiniStrategySettings(strat, templates, activeId);
+      };
+
+      document.querySelectorAll('#zf-mini-strategy-chips .zf-chip-btn').forEach(btn => {
+        btn.onclick = () => {
+          const strat = btn.getAttribute('data-ministrat');
+          if (stratSelect) stratSelect.value = strat;
+          if (templates[activeId]) {
+            templates[activeId].clickStrategy = strat;
+            chrome.storage.local.set({ domTemplates: templates });
+          }
+          updateMiniChips(strat);
+          renderMiniStrategySettings(strat, templates, activeId);
+        };
+      });
     });
+  }
+
+  function updateMiniChips(strat) {
+    document.querySelectorAll('#zf-mini-strategy-chips .zf-chip-btn').forEach(b => {
+      const isAct = b.getAttribute('data-ministrat') === strat;
+      b.classList.toggle('active', isAct);
+      b.style.background = isAct ? '#202619' : '#141519';
+      b.style.borderColor = isAct ? '#a3e635' : '#2e3038';
+      b.style.color = isAct ? '#a3e635' : '#cbd5e1';
+      b.style.fontWeight = isAct ? '700' : '600';
+    });
+  }
+
+  function renderMiniStrategySettings(strat, templates, activeId) {
+    const card = document.getElementById("zf-mini-strategy-dynamic-card");
+    if (!card) return;
+
+    const tpl = templates[activeId] || {};
+    if (!tpl.strategyConfig) tpl.strategyConfig = {};
+    const defaultCfgs = {
+      enter: { preDelay: 100, modifier: 'none', requestSubmit: true, reactDispatch: true },
+      standard: { hoverDelay: 80, holdDuration: 50, pointerEvents: true, forceFocus: true },
+      coords: { pctX: 0.88, pctY: 0.91, offsetX: 0, offsetY: 0 },
+      double: { clickCount: 2, burstInterval: 60, dispatchEnterAfter: true },
+      react_fiber: { resetValueTracker: true, traverseFiber: true, simulateBeforeInput: true },
+      automa_pipeline: { step1Focus: true, step2Type: true, step3Enter: true, step4BackupClick: true },
+      xpath_cascade: { customXPath: "//button[contains(@aria-label, 'generate')]", filterNegatives: true }
+    };
+    if (!tpl.strategyConfig[strat]) {
+      tpl.strategyConfig[strat] = { ...(defaultCfgs[strat] || {}) };
+    }
+    const cfg = tpl.strategyConfig[strat];
+
+    let html = '';
+    if (strat === 'enter') {
+      html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
+          <span>Pre-Delay:</span>
+          <span style="color:#a3e635;font-weight:700;">${cfg.preDelay || 100}ms</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
+          <span>React 18 Sync:</span>
+          <input type="checkbox" id="zf-mini-rf-sync" ${cfg.reactDispatch !== false ? 'checked' : ''} style="accent-color:#a3e635;" />
+        </div>
+      `;
+    } else if (strat === 'coords') {
+      html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
+          <span>Target Viewport:</span>
+          <span style="color:#a3e635;font-weight:700;">${Math.round((cfg.pctX || 0.88)*100)}% X, ${Math.round((cfg.pctY || 0.91)*100)}% Y</span>
+        </div>
+      `;
+    } else if (strat === 'double') {
+      html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
+          <span>Burst Count:</span>
+          <span style="color:#a3e635;font-weight:700;">${cfg.clickCount || 2}x</span>
+        </div>
+      `;
+    } else {
+      html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
+          <span>Active Engine:</span>
+          <span style="color:#a3e635;font-weight:700;">${strat.toUpperCase()}</span>
+        </div>
+      `;
+    }
+
+    card.innerHTML = html;
   }
 
   async function executeMiniStudioGeneration() {

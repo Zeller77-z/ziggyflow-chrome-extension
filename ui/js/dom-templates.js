@@ -29,7 +29,8 @@ window.DomTemplatesManager = {
           id: 'default',
           name: 'Google Flow (Auto-Detect Heuristic)',
           isDefault: true,
-          clickStrategy: 'standard', // standard | coords | enter | double
+          clickStrategy: 'enter',
+          strategyConfig: JSON.parse(JSON.stringify(this.defaultStrategyConfig)),
           promptInput: null,
           generateButton: null,
           aspectRatio: null,
@@ -39,7 +40,8 @@ window.DomTemplatesManager = {
           id: 'flow_2026',
           name: 'Google Flow (2026 Layout)',
           isDefault: false,
-          clickStrategy: 'standard',
+          clickStrategy: 'enter',
+          strategyConfig: JSON.parse(JSON.stringify(this.defaultStrategyConfig)),
           promptInput: {
             selector: "textarea, div[role='textbox']",
             xpath: "//textarea | //div[@role='textbox']",
@@ -58,8 +60,20 @@ window.DomTemplatesManager = {
           modelSelector: null
         }
       };
-      await chrome.storage.local.set({ domTemplates: this.templates });
     }
+
+    // Auto-migrate schema for any missing fields
+    Object.values(this.templates).forEach(tpl => {
+      if (!tpl.clickStrategy) tpl.clickStrategy = 'enter';
+      if (!tpl.strategyConfig) tpl.strategyConfig = {};
+      Object.keys(this.defaultStrategyConfig).forEach(strat => {
+        if (!tpl.strategyConfig[strat]) {
+          tpl.strategyConfig[strat] = { ...this.defaultStrategyConfig[strat] };
+        }
+      });
+    });
+
+    await chrome.storage.local.set({ domTemplates: this.templates });
 
     if (data.activeDomTemplateId && this.templates[data.activeDomTemplateId]) {
       this.activeTemplateId = data.activeDomTemplateId;
@@ -117,16 +131,27 @@ window.DomTemplatesManager = {
       labelRatio.style.color = tpl.aspectRatio ? '#a3e635' : '#cbd5e1';
     }
 
+    const currentStrat = tpl.clickStrategy || 'enter';
+
     if (stratSelect) {
-      stratSelect.value = tpl.clickStrategy || 'enter';
+      stratSelect.value = currentStrat;
     }
+
+    document.querySelectorAll('#strategy-tool-chips .strategy-chip-btn').forEach(b => {
+      const isAct = b.getAttribute('data-strat') === currentStrat;
+      b.classList.toggle('active', isAct);
+      b.style.background = isAct ? '#202619' : '#141519';
+      b.style.borderColor = isAct ? '#a3e635' : '#2e3038';
+      b.style.color = isAct ? '#a3e635' : '#cbd5e1';
+      b.style.fontWeight = isAct ? '700' : '600';
+    });
 
     const tplNameInput = document.getElementById('input-template-name');
     if (tplNameInput) {
       tplNameInput.value = tpl.name;
     }
 
-    this.renderStrategyDynamicSettings(tpl.clickStrategy || 'enter');
+    this.renderStrategyDynamicSettings(currentStrat);
   },
 
   defaultStrategyConfig: {
@@ -532,13 +557,49 @@ window.DomTemplatesManager = {
       }
     });
 
-    // Click strategy change -> update and re-render dynamic settings card!
+    // Click strategy change -> update chips and re-render dynamic settings card!
     document.getElementById('select-click-strategy')?.addEventListener('change', async (e) => {
+      const strat = e.target.value;
       const tpl = this.getActiveTemplate();
-      tpl.clickStrategy = e.target.value;
+      tpl.clickStrategy = strat;
       await this.saveTemplates();
-      this.renderStrategyDynamicSettings(e.target.value);
-      window.AutoFlow.showToast(`⚡ Automation tool set to: ${e.target.value.toUpperCase()}`, 'info');
+
+      document.querySelectorAll('#strategy-tool-chips .strategy-chip-btn').forEach(b => {
+        const isAct = b.getAttribute('data-strat') === strat;
+        b.classList.toggle('active', isAct);
+        b.style.background = isAct ? '#202619' : '#141519';
+        b.style.borderColor = isAct ? '#a3e635' : '#2e3038';
+        b.style.color = isAct ? '#a3e635' : '#cbd5e1';
+        b.style.fontWeight = isAct ? '700' : '600';
+      });
+
+      this.renderStrategyDynamicSettings(strat);
+      window.AutoFlow.showToast(`⚡ Engine set to: ${strat.toUpperCase()}`, 'info');
+    });
+
+    // Tool Chips Click
+    document.querySelectorAll('#strategy-tool-chips .strategy-chip-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const strat = btn.getAttribute('data-strat');
+        const tpl = this.getActiveTemplate();
+        tpl.clickStrategy = strat;
+        await this.saveTemplates();
+
+        const stratSelect = document.getElementById('select-click-strategy');
+        if (stratSelect) stratSelect.value = strat;
+
+        document.querySelectorAll('#strategy-tool-chips .strategy-chip-btn').forEach(b => {
+          const isAct = b.getAttribute('data-strat') === strat;
+          b.classList.toggle('active', isAct);
+          b.style.background = isAct ? '#202619' : '#141519';
+          b.style.borderColor = isAct ? '#a3e635' : '#2e3038';
+          b.style.color = isAct ? '#a3e635' : '#cbd5e1';
+          b.style.fontWeight = isAct ? '700' : '600';
+        });
+
+        this.renderStrategyDynamicSettings(strat);
+        window.AutoFlow.showToast(`⚡ Engine set to: ${strat.toUpperCase()}`, 'info');
+      });
     });
 
     // Visual Mapper Buttons
