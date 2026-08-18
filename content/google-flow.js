@@ -244,6 +244,15 @@
         } else if (slotName.toLowerCase().includes("generate") || slotName.toLowerCase().includes("button")) {
           const parentBtn = targetEl.closest('button, [role="button"]');
           if (parentBtn) targetEl = parentBtn;
+          
+          const rect = targetEl.getBoundingClientRect();
+          // Reject Back button or any header button in the top 40%
+          if (rect.top < window.innerHeight * 0.38 || isNegativeButton(targetEl)) {
+            console.warn("ZiggyFlow: Rejected top/back button during generate mapping:", targetEl);
+            highlightElement(targetEl, "#ef4444");
+            showLiveToast("⚠️ Back/Header button ignored — please click the Generate button near the bottom prompt box", true);
+            return;
+          }
         }
 
         const rect = targetEl.getBoundingClientRect();
@@ -603,111 +612,98 @@
 
     // 3. Inject prompt text cleanly with native typing simulation
     await safeReactType(promptInput, task.prompt);
-    await sleep(300);
+    await sleep(200);
 
-    // 4. Find the Generate button
-    const generateBtn = await findGenerateButton(promptInput, 8000);
-    window.getSelection()?.removeAllRanges();
+    // Mark element for Main World script execution
+    promptInput.setAttribute("data-ziggy-prompt", "true");
 
-    if (generateBtn) {
-      console.log("ZiggyFlow: Found generate button:", generateBtn.tagName, 
-        generateBtn.getBoundingClientRect());
-      highlightElement(generateBtn, "#facc15");
+    // Sync React 18 internal value tracker safely in Main World
+    syncReactStateInMainWorld(task.prompt);
+    await sleep(150);
 
-      // Mark elements for Main World script execution
-      promptInput.setAttribute("data-ziggy-prompt", "true");
-      generateBtn.setAttribute("data-ziggy-generate", "true");
+    const isManualSubmit = (task.submitMode || "auto") === "manual";
 
-      await sleep(200);
-
-      const isManualSubmit = (task.submitMode || "auto") === "manual";
-
-      if (isManualSubmit) {
-        // ==========================================
-        // MANUAL SUBMIT WORKFLOW (TobyFlow Pattern)
-        // ==========================================
-        console.log("ZiggyFlow: Manual Submit Mode active — attaching listeners.");
-        showLiveToast("⏱ Manual Submit: Press Enter or Click Submit on page", false);
-        
-        // Sync React state so the button is illuminated
-        triggerGenerationInMainWorld(task.prompt);
-
-        // Wait for user manual trigger (Enter key, Generate click, or badge click)
-        await showManualSubmitPromptBadge(promptInput, generateBtn, 120000);
-        showLiveToast("🚀 Generation submitted! Tracking progress...");
-      } else {
-        // ==========================================
-        // AUTO SUBMIT WORKFLOW (Clean, Human-like & Safe)
-        // ==========================================
-        console.log("ZiggyFlow: Executing clean Auto-Submit...");
-
-        // 1. Sync React 18 internal value tracker safely in Main World
-        syncReactStateInMainWorld(task.prompt);
-        await sleep(150);
-
-        // 2. Focus prompt input
-        promptInput.focus();
-        await sleep(50);
-
-        // 3. Ensure generate button is enabled
-        try {
-          generateBtn.disabled = false;
-          generateBtn.removeAttribute("disabled");
-          generateBtn.removeAttribute("aria-disabled");
-          generateBtn.classList.remove("disabled");
-          generateBtn.style.pointerEvents = "auto";
-        } catch (e) {}
-
-        // 4. Execute click strategy based on active template
-        const activeTpl = await getActiveTemplateConfig();
-        const strat = activeTpl?.clickStrategy || "standard";
-        console.log(`ZiggyFlow: Executing button click strategy: ${strat}`);
-
-        if (strat === "coords" && activeTpl?.generateButton?.coords) {
-          const clientX = Math.round(activeTpl.generateButton.coords.pctX * window.innerWidth);
-          const clientY = Math.round(activeTpl.generateButton.coords.pctY * window.innerHeight);
-          const coordTarget = document.elementFromPoint(clientX, clientY) || generateBtn;
-          clickButtonCleanly(coordTarget);
-        } else if (strat === "enter") {
-          promptInput.focus();
-          const enterEvt = new KeyboardEvent("keydown", {
-            key: "Enter",
-            code: "Enter",
-            keyCode: 13,
-            which: 13,
-            charCode: 13,
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            view: window
-          });
-          promptInput.dispatchEvent(enterEvt);
-        } else if (strat === "double") {
-          clickButtonCleanly(generateBtn);
-          await sleep(60);
-          clickButtonCleanly(generateBtn);
-        } else {
-          // Standard Mouse Click Chain (default)
-          clickButtonCleanly(generateBtn);
-          await sleep(80);
-          const enterEvt = new KeyboardEvent("keydown", {
-            key: "Enter",
-            code: "Enter",
-            keyCode: 13,
-            which: 13,
-            charCode: 13,
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            view: window
-          });
-          promptInput.dispatchEvent(enterEvt);
-        }
-
-        console.log("ZiggyFlow: Auto-Submit dispatched cleanly.");
+    if (isManualSubmit) {
+      // ==========================================
+      // MANUAL SUBMIT WORKFLOW (TobyFlow Pattern)
+      // ==========================================
+      console.log("ZiggyFlow: Manual Submit Mode active — attaching listeners.");
+      showLiveToast("⏱ Manual Submit: Press Enter or Click Submit on page", false);
+      
+      const generateBtn = await findGenerateButton(promptInput, 2000);
+      if (generateBtn && !isNegativeButton(generateBtn)) {
+        generateBtn.setAttribute("data-ziggy-generate", "true");
       }
+
+      await showManualSubmitPromptBadge(promptInput, generateBtn, 120000);
+      showLiveToast("🚀 Generation submitted! Tracking progress...");
     } else {
-      showLiveToast("⚠️ Generate button not found. Please press Enter on page.", true);
+      // ==========================================
+      // AUTO SUBMIT WORKFLOW (Direct Native Enter Key + Button Click)
+      // ==========================================
+      console.log("ZiggyFlow: Auto-Submitting via Direct Enter Keypress (No mapping required!)...");
+      showLiveToast("🚀 Submitting generation directly via Enter key...", false);
+
+      // A. Focus prompt input directly
+      promptInput.focus();
+      await sleep(60);
+
+      // B. Dispatch Full Native Enter Event Sequence in Isolated World
+      const enterDown = new KeyboardEvent("keydown", {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        charCode: 13,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        view: window
+      });
+      const enterPress = new KeyboardEvent("keypress", {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        charCode: 13,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        view: window
+      });
+      const enterUp = new KeyboardEvent("keyup", {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        charCode: 13,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        view: window
+      });
+
+      promptInput.dispatchEvent(enterDown);
+      promptInput.dispatchEvent(enterPress);
+      promptInput.dispatchEvent(enterUp);
+
+      // C. Dispatch Enter & form submission in Main World context
+      dispatchEnterInMainWorld(task.prompt);
+      await sleep(150);
+
+      // D. Complementary: if a real Generate button is near the prompt box, click it cleanly as backup
+      try {
+        const generateBtn = await findGenerateButton(promptInput, 1500);
+        if (generateBtn && !isNegativeButton(generateBtn) && !isExtensionElement(generateBtn)) {
+          const btnRect = generateBtn.getBoundingClientRect();
+          if (btnRect.top >= window.innerHeight * 0.38) {
+            console.log("ZiggyFlow: Complementary click on Generate button:", generateBtn);
+            clickButtonCleanly(generateBtn);
+          }
+        }
+      } catch (e) {}
+
+      console.log("ZiggyFlow: Auto-Submit completed via direct Enter keystroke.");
     }
 
     // 5. Track live generation smoothly with throttled progress monitor
@@ -840,6 +836,71 @@
             btn.removeAttribute('disabled');
             btn.removeAttribute('aria-disabled');
             btn.classList.remove('disabled');
+          }
+        } catch(err) {}
+      `;
+
+      const script = document.createElement("script");
+      script.textContent = `(() => { ${code} })();`;
+      (document.head || document.documentElement).appendChild(script);
+      script.remove();
+    } catch (e) {}
+  }
+
+  /** Dispatches native Enter key and form submit in Main World context */
+  function dispatchEnterInMainWorld(promptText) {
+    try {
+      const code = `
+        try {
+          const input = document.querySelector('[data-ziggy-prompt="true"]') || 
+                        document.querySelector('textarea, [contenteditable="true"][role="textbox"]');
+          if (input) {
+            input.focus();
+            
+            // 1. Dispatch keydown with Enter
+            const enterEvt = new KeyboardEvent('keydown', {
+              key: 'Enter',
+              code: 'Enter',
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              view: window
+            });
+            input.dispatchEvent(enterEvt);
+
+            // 2. Dispatch keypress
+            const pressEvt = new KeyboardEvent('keypress', {
+              key: 'Enter',
+              code: 'Enter',
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              view: window
+            });
+            input.dispatchEvent(pressEvt);
+
+            // 3. Dispatch keyup
+            const upEvt = new KeyboardEvent('keyup', {
+              key: 'Enter',
+              code: 'Enter',
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              view: window
+            });
+            input.dispatchEvent(upEvt);
+
+            // 4. Request submit if inside form
+            const form = input.closest('form');
+            if (form && typeof form.requestSubmit === 'function') {
+              try { form.requestSubmit(); } catch(e) {}
+            }
           }
         } catch(err) {}
       `;
@@ -1124,7 +1185,8 @@
     "bookmark", "save", "lưu",
     "copy", "sao chép", "download", "tải xuống",
     "all media", "characters", "scenes", "tools",
-    "trash", "thùng rác"
+    "trash", "thùng rác",
+    "arrow_back", "arrow-back", "chevron", "home", "header", "navbar", "topbar", "breadcrumb"
   ];
 
   function isExtensionElement(el) {
@@ -1139,16 +1201,27 @@
   }
 
   function isNegativeButton(btn) {
+    if (!btn) return true;
     if (isExtensionElement(btn)) return true;
+
+    // Strict vertical check: Generate button is ALWAYS in the bottom area (top > 38% of viewport)
+    try {
+      const rect = btn.getBoundingClientRect();
+      if (rect.top < window.innerHeight * 0.38) {
+        return true; // Reject back button, header navbar, breadcrumb, profile
+      }
+    } catch(e) {}
+
     const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
     const text = (btn.textContent || "").trim().toLowerCase();
     const title = (btn.getAttribute("title") || "").toLowerCase();
-    const combined = aria + " " + text + " " + title;
+    const className = String(btn.className || "").toLowerCase();
+    const combined = aria + " " + text + " " + title + " " + className;
     
     for (const term of NEGATIVE_TERMS) {
       if (combined.includes(term)) return true;
     }
-    if (text.length > 20) return true;
+    if (text.length > 25) return true;
     return false;
   }
 
@@ -1157,7 +1230,7 @@
     const tpl = await getActiveTemplateConfig();
     if (tpl?.generateButton) {
       const templateEl = resolveTemplateElement(tpl.generateButton);
-      if (templateEl && templateEl.offsetParent !== null && !isExtensionElement(templateEl)) {
+      if (templateEl && templateEl.offsetParent !== null && !isNegativeButton(templateEl)) {
         console.log("ZiggyFlow: Resolved generate button from active template:", tpl.name, templateEl);
         return templateEl;
       }
