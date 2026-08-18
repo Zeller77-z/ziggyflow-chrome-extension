@@ -1,0 +1,96 @@
+{
+  "manifest_version": 3,
+  "name": "ZiggyFlow Pro - Multi-AI Image & Video Studio",
+  "version": "1.0.0",
+  "description": "ZiggyFlow - Automate Google Flow (Veo 3.1 & Omni Flash), ChatGPT, and Grok for AI image/video generation. Batch prompts, smart workflows, auto 2K/4K download.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "downloads",
+    "sidePanel",
+    "contextMenus",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "https://labs.google/*",
+    "https://*.google.com/*",
+    "https://aitestkitchen.withgoogle.com/*",
+    "https://chatgpt.com/*",
+    "https://*.openai.com/*",
+    "https://chat.openai.com/*",
+    "https://grok.com/*",
+    "https://*.x.ai/*",
+    "https://x.com/i/grok*",
+    "https://api.telegram.org/*",
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "side_panel": {
+    "default_path": "ui/index.html"
+  },
+  "action": {
+    "default_popup": "ui/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "ZiggyFlow Pro"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://labs.google/*",
+        "https://*.google.com/*",
+        "https://aitestkitchen.withgoogle.com/*"
+      ],
+      "js": ["content/google-flow.js", "content/injected-overlay.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://*.openai.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": ["content/chatgpt.js", "content/injected-overlay.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://grok.com/*",
+        "https://*.x.ai/*",
+        "https://x.com/i/grok*"
+      ],
+      "js": ["content/grok.js", "content/injected-overlay.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/screen-capture.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "assets/*",
+        "ui/css/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

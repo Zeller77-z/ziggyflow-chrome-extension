@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZiggyFlow Pro</title>
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/workflow.css" />
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-icon">✨</div>
+      <span class="brand-name">ZiggyFlow</span>
+    </div>
+    <div class="header-icons">
+      <div class="header-icon-btn" id="hdr-btn-toggle" title="Flow Status">🟢</div>
+      <div class="header-icon-btn" id="hdr-btn-docs" title="Logs / Presets">📄</div>
+      <div class="header-icon-btn" id="hdr-btn-web" title="Web & Cloud Sync">🌐</div>
+      <div class="header-icon-btn" id="hdr-btn-settings" title="Settings">⚙️</div>
+      <div class="header-icon-btn" id="hdr-btn-bell" title="Notifications">
+        🔔
+        <div class="header-dot"></div>
+      </div>
+      <div class="header-icon-btn" id="hdr-btn-profile" title="Account Profile">👤</div>
+    </div>
+  </header>
+
+  <!-- Project / Session Bar -->
+  <div class="project-bar">
+    <div class="project-dropdown" id="btn-project-dropdown">
+      <span id="active-project-label">✦ Aug 02, 02:05 PM</span>
+      <span style="font-size:10px;">▾</span>
+    </div>
+    <div class="btn-add-project" id="btn-create-project" title="Create / Open New Project">+</div>
+
+    <!-- Floating Project Dropdown Menu -->
+    <div class="project-dropdown-menu" id="project-dropdown-menu" style="display:none;"></div>
+  </div>
+
+  <!-- Warning Banners -->
+  <div id="flow-tab-alert" class="banner-alert banner-warning" style="display:none;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span>⚠️</span>
+      <span id="flow-tab-alert-text">Detected 2 Flow tabs. Extension only works correctly with 1 tab.</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button class="btn-alert-action" id="btn-close-duplicate-tabs">Close other tabs</button>
+      <span class="btn-alert-close" id="btn-dismiss-tab-alert">✕</span>
+    </div>
+  </div>
+
+  <!-- Main Navigation Tabs -->
+  <nav class="main-nav-tabs">
+    <div class="nav-tab-btn active" data-tab="gen">
+      <span>✨</span>
+      <span>Gen</span>
+    </div>
+    <div class="nav-tab-btn" data-tab="workflow">
+      <span>🔗</span>
+      <span>Workflow</span>
+    </div>
+    <div class="nav-tab-btn" data-tab="bulk">
+      <span>⬇️</span>
+      <span>Bulk DL</span>
+    </div>
+    <div class="nav-tab-btn" data-tab="prompts">
+      <span>📄</span>
+      <span>Prompts</span>
+    </div>
+    <div class="nav-tab-btn" data-tab="tasks">
+      <span>📋</span>
+      <span>Tasks</span>
+    </div>
+    <div class="nav-tab-btn" data-tab="gallery">
+      <span>🖼️</span>
+      <span>Gallery</span>
+    </div>
+    <div class="nav-tab-btn" data-tab="angles">
+      <span>🎥</span>
+      <span>Angles</span>
+    </div>
+    <div class="nav-tab-btn" data-tab="effects">
+      <span>📸</span>
+      <span>FX</span>
+    </div>
+    <div class="nav-tab-btn" data-tab="diagnostics">
+      <span>🧪</span>
+      <span>Status</span>
+    </div>
+  </nav>
+
+  <!-- Content Panes -->
+  <main class="tab-content-area">
+
+    <!-- 1. GEN TAB (Matching ZiggyFlow Screenshot) -->
+    <section id="tab-gen" class="tab-pane active">
+      
+      <!-- Prompt Header Row -->
+      <div class="prompt-header-row">
+        <div class="prompt-count-badge">
+          <span>📑</span>
+          <span>Prompt</span>
+          <span id="prompt-count-label" style="color:#cbd5e1;">0 prompt(s)</span>
+        </div>
+        <div class="multi-prompt-toggle-wrap" id="multi-prompt-toggle-wrap">
+          <div class="provider-toggle-switch" id="toggle-multi-prompt"></div>
+          <span>Multi-Prompt</span>
+        </div>
+      </div>
+
+      <!-- Prompt Textarea with Chips inside -->
+      <div class="prompt-container">
+        <textarea id="gen-prompt-input" class="prompt-textarea" placeholder="Enter your prompt here...&#10;&#10;sitting in a cafe&#10;walking on the beach&#10;flying in space"></textarea>
+        
+        <div class="prompt-toolbar">
+          <div class="prompt-chips-left">
+            <div class="chip-icon-only" id="chip-btn-snip" title="Snip Reference Image from Web">⛶</div>
+            <div class="chip-btn" id="chip-btn-assistant">
+              <span>✏️</span>
+              <span>Prompt Assistant</span>
+            </div>
+            <div class="chip-btn" id="chip-btn-import">
+              <span>➕</span>
+              <span>Import .txt</span>
+              <input type="file" id="gen-file-import" accept=".txt,.csv" style="display:none;" />
+            </div>
+          </div>
+          <div class="chip-icon-only" id="chip-btn-save-tpl" title="Save as Prompt Template">🔖</div>
+        </div>
+      </div>
+
+      <!-- Provider Row -->
+      <div class="provider-row">
+        <div class="provider-pills">
+          <div class="provider-pill active active-flow" data-provider="flow">
+            <span>✨</span>
+            <span>Google Flow</span>
+          </div>
+          <div class="provider-pill" data-provider="chatgpt">
+            <span>🤖</span>
+            <span>ChatGPT</span>
+            <span class="crown-badge">👑</span>
+          </div>
+          <div class="provider-pill" data-provider="grok">
+            <span>⚡</span>
+            <span>Grok</span>
+            <span class="crown-badge">👑</span>
+          </div>
+        </div>
+        <div class="provider-toggle-switch active" id="provider-auto-toggle" title="Auto Multi-AI Mode"></div>
+      </div>
+
+      <!-- Settings Section Header -->
+      <div class="section-title">
+        <span>🎚️</span>
+        <span>Settings</span>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- A. IMAGE GENERATION CONTROLS (Active by default) -->
+      <!-- ============================================== -->
+      <div id="image-mode-controls" style="display:flex;flex-direction:column;gap:12px;">
+        <!-- Row 1: Media Toggle, Model, Aspect Ratio, Stepper -->
+        <div class="control-row">
+          <div class="media-type-toggle">
+            <button class="media-type-btn active" id="btn-type-image" title="Image Generation">🖼️</button>
+            <button class="media-type-btn" id="btn-type-video-trigger" title="Video Generation">🎥</button>
+          </div>
+
+          <select class="select-control" id="select-model-image" style="flex:1;">
+            <option value="Nano Banana 2" selected>🍌 Nano Banana 2</option>
+            <option value="Nano Banana Pro">🍌 Nano Banana Pro</option>
+            <option value="GPT Image 2">🤖 GPT Image 2</option>
+            <option value="Grok Imagine">⚡ Grok Imagine</option>
+          </select>
+
+          <select class="select-control" id="select-aspect-ratio-image" style="width:85px;">
+            <option value="9:16" selected>⬛ 9:16</option>
+            <option value="16:9">⬛ 16:9</option>
+            <option value="1:1">⬛ 1:1</option>
+            <option value="4:3">⬛ 4:3</option>
+            <option value="21:9">⬛ 21:9</option>
+          </select>
+
+          <div class="stepper-control">
+            <button class="stepper-btn" id="stepper-minus-img">-</button>
+            <span class="stepper-val" id="stepper-value-img">1</span>
+            <button class="stepper-btn" id="stepper-plus-img">+</button>
+          </div>
+        </div>
+
+        <!-- Row 2: Character & Style -->
+        <div class="control-row">
+          <select class="select-control" id="select-character-image" style="flex:1;">
+            <option value="">👤 Character ▾</option>
+            <option value="elder_isaac">Elder Isaac</option>
+            <option value="cyberpunk_girl">Cyberpunk Operative</option>
+            <option value="samurai">Ronin Samurai</option>
+            <option value="astronaut">Space Explorer</option>
+          </select>
+
+          <select class="select-control" id="select-style-image" style="flex:1;">
+            <option value="">🌙 Style ▾</option>
+            <option value="cinematic">Cinematic 35mm</option>
+            <option value="neon_cyberpunk">Neon Cyberpunk</option>
+            <option value="ghibli">Studio Ghibli</option>
+            <option value="photorealistic">8K Photorealism</option>
+            <option value="dark_fantasy">Dark Fantasy</option>
+          </select>
+        </div>
+
+        <!-- Row 3: Reference Images Dropzone -->
+        <div class="reference-section-header">
+          <div style="font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;">
+            <span>🖼️</span>
+            <span>Reference Image</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="chip-btn" id="btn-snip-reference-img" style="background:#252836;border-color:#a3e635;color:#a3e635;padding:3px 9px;font-weight:700;" title="Snip Reference Image from Web">
+              <span>✂️</span>
+              <span>Snip from Web</span>
+            </button>
+            <select class="select-control" id="select-album-filter-img" style="padding:3px 8px;font-size:11px;">
+              <option value="All">📁 All</option>
+              <option value="Default">📁 Default</option>
+              <option value="Characters">📁 Characters</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dropzone-box" id="dropzone-upload-img">
+          <div class="dropzone-text" id="dropzone-content-img">
+            <span>📁</span>
+            <span id="dropzone-label-img">Upload image / Drag here or Snip from Web</span>
+            <input type="file" id="dropzone-file-input-img" accept="image/*" style="display:none;" />
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <div class="dropzone-snip-btn" id="dropzone-snip-btn-img" title="Snip from Web Page">✂️</div>
+          </div>
+        </div>
+
+        <!-- Row 4: Download Settings Bar -->
+        <div class="download-bar">
+          <div class="toggle-switch-wrapper">
+            <div class="provider-toggle-switch active" id="toggle-watermark-img"></div>
+            <span>No watermark</span>
+            <span class="crown-badge">👑</span>
+          </div>
+
+          <select class="select-control" id="select-resolution-img" style="padding:4px 8px;font-size:11px;">
+            <option value="1K" selected>🖼️ 1K</option>
+            <option value="2K">🖼️ 2K</option>
+            <option value="4K">🖼️ 4K</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- B. VIDEO GENERATION CONTROLS (Active when Video chosen) -->
+      <!-- ============================================== -->
+      <div id="video-mode-controls" style="display:none;flex-direction:column;gap:12px;">
+        <!-- Row 1: Media Toggle & Video Model -->
+        <div class="control-row">
+          <div class="media-type-toggle">
+            <button class="media-type-btn" id="btn-type-image-trigger" title="Image Generation">🖼️</button>
+            <button class="media-type-btn active" id="btn-type-video" title="Video Generation">🎥</button>
+          </div>
+
+          <select class="select-control" id="select-model-video" style="flex:1;">
+            <option value="Omni Flash" selected>Omni Flash</option>
+            <option value="Veo 3.1 Quality">Veo 3.1 Quality</option>
+            <option value="Veo 3.1 Fast">Veo 3.1 Fast</option>
+            <option value="Veo 3.1 Lite">Veo 3.1 Lite</option>
+            <option value="Grok Aurora Video">Grok Aurora Video</option>
+          </select>
+        </div>
+
+        <!-- Row 2: Framing Mode, Duration, Aspect Ratio, Stepper -->
+        <div class="control-row">
+          <select class="select-control" id="select-framing-mode" style="flex:1;">
+            <option value="Frames" selected>Frames ▾</option>
+            <option value="Text-to-Video">Text to Video</option>
+            <option value="Image-to-Video">Image to Video</option>
+            <option value="Extend">Extend Clip</option>
+          </select>
+
+          <select class="select-control" id="select-duration" style="width:70px;">
+            <option value="4s">4s</option>
+            <option value="6s" selected>6s</option>
+            <option value="8s">8s</option>
+            <option value="10s">10s</option>
+            <option value="12s">12s</option>
+          </select>
+
+          <select class="select-control" id="select-aspect-ratio-video" style="width:85px;">
+            <option value="9:16" selected>⬛ 9:16</option>
+            <option value="16:9">⬛ 16:9</option>
+            <option value="1:1">⬛ 1:1</option>
+            <option value="21:9">⬛ 21:9</option>
+          </select>
+
+          <div class="stepper-control">
+            <button class="stepper-btn" id="stepper-minus-vid">-</button>
+            <span class="stepper-val" id="stepper-value-vid">1</span>
+            <button class="stepper-btn" id="stepper-plus-vid">+</button>
+          </div>
+        </div>
+
+        <!-- Row 3: Character, Voice, Style -->
+        <div class="control-row">
+          <select class="select-control" id="select-character-video" style="flex:1;">
+            <option value="">👤 Character ▾</option>
+            <option value="elder_isaac">Elder Isaac</option>
+            <option value="cyberpunk_girl">Cyberpunk Heroine</option>
+            <option value="samurai">Ronin Samurai</option>
+            <option value="astronaut">Space Explorer</option>
+          </select>
+
+          <select class="select-control" id="select-voice-video" style="flex:1;">
+            <option value="random">🔊 Random voice ▾</option>
+            <option value="male_narrator">🎙️ Male Narrator</option>
+            <option value="female_cinematic">🎙️ Female Cinematic</option>
+            <option value="deep_voice">🎙️ Deep Dramatic</option>
+            <option value="whisper">🎙️ Soft Whisper</option>
+            <option value="energetic">🎙️ Energetic Host</option>
+          </select>
+
+          <select class="select-control" id="select-style-video" style="flex:1;">
+            <option value="">🌙 Style ▾</option>
+            <option value="cinematic">Cinematic 35mm</option>
+            <option value="neon_cyberpunk">Neon Cyberpunk</option>
+            <option value="ghibli">Studio Ghibli</option>
+            <option value="photorealistic">8K Photorealism</option>
+            <option value="dark_fantasy">Dark Fantasy</option>
+          </select>
+        </div>
+
+        <!-- Video Frames Section -->
+        <div class="reference-section-header">
+          <div style="font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;">
+            <span>🎞️</span>
+            <span>Video Frames & Reference</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="chip-btn" id="btn-snip-reference-vid" style="background:#252836;border-color:#a3e635;color:#a3e635;padding:3px 9px;font-weight:700;" title="Snip Reference Image from Web">
+              <span>✂️</span>
+              <span>Snip from Web</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="font-size:11.5px;color:var(--text-gray);margin-top:-6px;">
+          Reference Images (<span id="ref-image-count-vid">0</span>)
+        </div>
+
+        <!-- Main Video Reference Dropzone -->
+        <div class="dropzone-box" id="dropzone-upload-vid">
+          <div class="dropzone-text" id="dropzone-content-vid">
+            <span>📁</span>
+            <span id="dropzone-label-vid">Upload reference / Drag here or Snip from Web</span>
+            <input type="file" id="dropzone-file-input-vid" accept="image/*" style="display:none;" />
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <div class="dropzone-snip-btn" id="dropzone-snip-btn-vid" title="Snip from Web Page">✂️</div>
+          </div>
+        </div>
+
+        <!-- START & END Keyframe Box Row -->
+        <div class="keyframe-row">
+          <!-- START FRAME -->
+          <div class="keyframe-box">
+            <div class="keyframe-header">
+              <span>⛶ START</span>
+            </div>
+            <div class="keyframe-dashed-slot" id="slot-start-frame">
+              <span style="font-size:14px;">➕</span>
+              <span>Add</span>
+              <input type="file" id="input-start-frame" accept="image/*" style="display:none;" />
+            </div>
+          </div>
+
+          <!-- END FRAME -->
+          <div class="keyframe-box">
+            <div class="keyframe-header">
+              <span>⛶ END</span>
+            </div>
+            <div class="keyframe-dashed-slot" id="slot-end-frame">
+              <span style="font-size:14px;">➕</span>
+              <span>Add</span>
+              <input type="file" id="input-end-frame" accept="image/*" style="display:none;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Download Bar -->
+        <div class="download-bar">
+          <div class="toggle-switch-wrapper">
+            <div class="provider-toggle-switch active" id="toggle-watermark-vid"></div>
+            <span>No watermark</span>
+            <span class="crown-badge">👑</span>
+          </div>
+
+          <select class="select-control" id="select-resolution-vid" style="padding:4px 8px;font-size:11px;">
+            <option value="720p">🎥 720p</option>
+            <option value="1080p">🎥 1080p</option>
+            <option value="2K">🎥 2K</option>
+            <option value="4K" selected>🎥 4K</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- C. SHARED AUTO-DOWNLOAD BAR (Interactive & Error-free) -->
+      <!-- ============================================== -->
+      <div class="download-bar" style="margin-top:2px;">
+        <div class="toggle-switch-wrapper" id="toggle-auto-download-wrap">
+          <div class="provider-toggle-switch active" id="toggle-auto-download"></div>
+          <span>Auto download</span>
+        </div>
+
+        <div class="folder-input-pill">
+          <span>📁</span>
+          <input type="text" id="input-subfolder" value="ziggyflow-01" placeholder="Folder name..." />
+          <span style="cursor:pointer;font-size:13px;" id="btn-folder-settings" title="Folder Settings">⚙️</span>
+        </div>
+      </div>
+
+      <!-- Subfolder Settings Drawer (Toggled by ⚙️) -->
+      <div id="subfolder-settings-drawer" class="subfolder-settings-drawer" style="display:none;">
+        <div style="font-weight:700;display:flex;justify-content:space-between;">
+          <span>📁 Download Organization Settings</span>
+          <span style="cursor:pointer;" id="btn-close-drawer">✕</span>
+        </div>
+        <div>
+          <label style="color:var(--text-gray);font-size:11px;">Naming Template:</label>
+          <input type="text" id="input-naming-template" value="[Date]_[Project]_[Prompt]_[Index]" class="select-control" style="width:100%;margin-top:4px;" />
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm btn-primary" id="btn-save-drawer-settings" style="flex:1;">Save Settings</button>
+        </div>
+      </div>
+
+      <!-- Big Glowing Generate & Stop Button Group -->
+      <div style="display:flex;gap:8px;align-items:stretch;">
+        <button class="btn-generate-main" id="btn-generate-main" style="flex:1;">
+          <span>✨</span>
+          <span id="btn-generate-text">Generate</span>
+        </button>
+        <button class="btn-stop-main" id="btn-stop-main" title="Stop & Cancel Generation" style="display:none;">
+          <span>⏹️</span>
+          <span>Stop</span>
+        </button>
+      </div>
+
+      <!-- Manual Element Mapper Collapsible Box (With Enable / Disable Toggle) -->
+      <div class="element-mapper-box" style="background:#18191d;border:1px solid #374151;border-radius:10px;padding:10px;margin-top:10px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="provider-toggle-switch" id="toggle-manual-mapping" title="Turn ON/OFF Manual DOM Mapping"></div>
+            <span style="font-size:12px;font-weight:700;color:#e2e8f0;display:flex;align-items:center;gap:4px;">
+              <span>🎯</span> <span>Manual DOM Mapping</span>
+            </span>
+          </div>
+          <button class="btn btn-sm" id="btn-reset-element-map" style="background:#202227;border:1px solid #374151;color:#9ca3af;padding:2px 8px;font-size:10px;cursor:pointer;" title="Reset all to Auto-Detect">🔄 Reset Auto</button>
+        </div>
+        
+        <div id="manual-mapping-controls" style="display:none;grid-template-columns:1fr 1fr;gap:6px;">
+          <button class="btn btn-sm" id="btn-pick-prompt" style="background:#202227;border:1px solid #374151;color:#fff;font-size:11px;font-weight:600;padding:6px 8px;text-align:left;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <span>✍️</span> <span id="label-mapped-prompt" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Map Prompt Box</span>
+          </button>
+          <button class="btn btn-sm" id="btn-pick-generate" style="background:#202227;border:1px solid #374151;color:#fff;font-size:11px;font-weight:600;padding:6px 8px;text-align:left;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <span>🚀</span> <span id="label-mapped-generate" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Map Generate Btn</span>
+          </button>
+          <button class="btn btn-sm" id="btn-pick-ratio" style="background:#202227;border:1px solid #374151;color:#fff;font-size:11px;font-weight:600;padding:6px 8px;text-align:left;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <span>📐</span> <span id="label-mapped-ratio" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Map Ratio Area</span>
+          </button>
+          <button class="btn btn-sm" id="btn-pick-reference" style="background:#202227;border:1px solid #374151;color:#fff;font-size:11px;font-weight:600;padding:6px 8px;text-align:left;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <span>🖼️</span> <span id="label-mapped-reference" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Map Ref Upload</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. WORKFLOW TAB -->
+    <section id="tab-workflow" class="tab-pane">
+      <div class="workflow-toolbar" style="margin-bottom:8px;">
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-primary" id="wf-btn-add-node">➕ Add Node</button>
+          <button class="btn btn-sm btn-secondary" id="wf-btn-clear">Clear</button>
+          <button class="btn btn-sm btn-secondary" id="wf-btn-export">Export</button>
+          <button class="btn btn-sm btn-secondary" id="wf-btn-import">Import</button>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-secondary" id="wf-btn-sim-run">🧪 Test</button>
+          <button class="btn btn-sm btn-success" id="wf-btn-run">▶ Run Live</button>
+        </div>
+      </div>
+
+      <div class="node-palette" id="wf-palette" style="display:none;">
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;">Add Pipeline Node</div>
+        <div class="palette-item" data-node-type="generator_flow">🎬 Google Flow (Omni Flash / Veo 3.1)</div>
+        <div class="palette-item" data-node-type="generator_chatgpt">🎨 ChatGPT (GPT Image 2)</div>
+        <div class="palette-item" data-node-type="generator_grok">⚡ Grok (Aurora Video)</div>
+        <div class="palette-item" data-node-type="enhancer">🤖 AI Prompt Enhancer</div>
+        <div class="palette-item" data-node-type="download">⬇️ Auto 4K Download</div>
+      </div>
+
+      <div class="workflow-pane-container">
+        <div class="workflow-canvas-container" id="wf-canvas-container">
+          <div class="workflow-canvas" id="wf-canvas">
+            <svg class="workflow-svg-layer" id="wf-svg-layer"></svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. BULK DOWNLOAD TAB -->
+    <section id="tab-bulk" class="tab-pane">
+      <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:700;font-size:13px;">⬇️ Bulk 4K Media Harvester</div>
+          <button class="btn btn-sm btn-primary" id="bulk-btn-scan">🔍 Scan Page Media</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border-color);padding-top:8px;">
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-secondary" id="bulk-btn-select-all">Select All</button>
+            <button class="btn btn-sm btn-secondary" id="bulk-btn-deselect-all">Deselect</button>
+          </div>
+          <span class="badge" id="bulk-selected-count" style="background:#20283e;color:#38bdf8;">0 Selected</span>
+        </div>
+        <div class="folder-input-pill">
+          <span>📁 Save into:</span>
+          <input type="text" id="bulk-subfolder-input" value="ziggyflow-01" />
+        </div>
+        <div class="grid-2" id="bulk-media-grid" style="max-height:220px;overflow-y:auto;gap:8px;padding-right:2px;"></div>
+        <button class="btn btn-success" id="bulk-btn-download-selected" style="width:100%;">
+          ⬇️ Download All Selected Media (4K)
+        </button>
+        <div id="bulk-download-progress" style="font-size:11px;color:var(--accent-green);text-align:center;font-weight:600;"></div>
+      </div>
+    </section>
+
+    <!-- 4. PROMPTS TAB -->
+    <section id="tab-prompts" class="tab-pane">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input type="text" id="tpl-search-input" class="select-control" style="flex:1;" placeholder="🔍 Search 100+ prompt templates..." />
+      </div>
+      <div class="grid-2" id="templates-grid" style="gap:10px;"></div>
+    </section>
+
+    <!-- 5. TASKS TAB -->
+    <section id="tab-tasks" class="tab-pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:13px;">📋 Smart Tasks & Queue</div>
+        <button class="btn btn-sm btn-success" id="task-btn-run-all">⚡ Run All</button>
+      </div>
+      <div id="smart-tasks-container"></div>
+    </section>
+
+    <!-- 6. GALLERY TAB -->
+    <section id="tab-gallery" class="tab-pane">
+      <div class="grid-3" id="album-gallery-grid" style="gap:10px;"></div>
+    </section>
+
+    <!-- 7. ANGLES TAB -->
+    <section id="tab-angles" class="tab-pane">
+      <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:12px;text-align:center;">
+        <canvas id="angle-compass-canvas" width="280" height="160" style="background:#0b0f19;border-radius:8px;"></canvas>
+        <button class="btn btn-primary" id="angle-btn-generate-batch" style="width:100%;margin-top:8px;">
+          ⚡ Generate 8 Turnaround Angles
+        </button>
+      </div>
+    </section>
+
+    <!-- 8. FX TAB -->
+    <section id="tab-effects" class="tab-pane">
+      <div class="grid-2" id="fx-grid-container" style="gap:8px;"></div>
+    </section>
+
+    <!-- 9. STATUS TAB -->
+    <section id="tab-diagnostics" class="tab-pane">
+      <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-weight:700;">🌐 Active AI Platform Detection</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-primary" id="diag-btn-force-connect">🔌 Connect Tab</button>
+            <button class="btn btn-sm btn-secondary" id="diag-btn-refresh">🔄 Refresh</button>
+          </div>
+        </div>
+        <div id="diag-status-container"></div>
+      </div>
+
+      <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:12px;margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:700;">🧪 Self-Diagnostics Suite</div>
+          <button class="btn btn-sm btn-primary" id="diag-btn-self-test">Run Test</button>
+        </div>
+        <div id="diag-test-log" style="background:#0b0f19;border-radius:6px;padding:10px;min-height:100px;font-family:monospace;font-size:11px;color:#cbd5e1;max-height:160px;overflow-y:auto;"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Status Footer Bar (Matching Screenshot) -->
+  <footer class="app-footer-bar">
+    <div class="footer-badges">
+      <div class="footer-badge trial">🪪 Trial</div>
+      <div class="footer-badge register" id="btn-register">Register</div>
+      <div class="footer-badge" id="footer-gen-count">🎯 0/20</div>
+      <div class="footer-badge" id="footer-video-count">🎬 0/0</div>
+      <div class="footer-badge">🚫 No Watermark</div>
+    </div>
+  </footer>
+
+  <!-- Confirm Run Modal (Matching TobyFlow Experience) -->
+  <div id="modal-confirm-run" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-weight:700;font-size:14px;color:#fff;">Confirm Run</span>
+        </div>
+        <span class="modal-close" id="btn-confirm-run-close">✕</span>
+      </div>
+
+      <div class="modal-body">
+        <!-- Prompts Count Row -->
+        <div class="confirm-row">
+          <span class="confirm-label">Prompts</span>
+          <span class="badge-prompts-count" id="confirm-prompts-count">1</span>
+        </div>
+
+        <!-- Provider Tag Row -->
+        <div class="confirm-provider-card" id="confirm-provider-tag">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="color:#38bdf8;">✦</span>
+            <span style="font-weight:700;color:#fff;" id="confirm-provider-name">Google Flow</span>
+            <span class="badge-tag" id="confirm-media-type">Image</span>
+          </div>
+          <span class="badge-ready">✓ Ready</span>
+        </div>
+
+        <!-- Ratio Setting -->
+        <div class="confirm-row">
+          <span class="confirm-label">Ratio</span>
+          <select class="confirm-select" id="confirm-select-ratio">
+            <option value="16:9">⬛ 16:9</option>
+            <option value="9:16">📱 9:16</option>
+            <option value="1:1">⬛ 1:1</option>
+            <option value="4:3">⬛ 4:3</option>
+            <option value="3:4">📱 3:4</option>
+            <option value="21:9">⬛ 21:9</option>
+          </select>
+        </div>
+
+        <!-- Quantity Stepper -->
+        <div class="confirm-row">
+          <span class="confirm-label">Quantity</span>
+          <div class="confirm-stepper">
+            <button class="confirm-step-btn" id="confirm-stepper-minus">-</button>
+            <span class="confirm-step-val" id="confirm-stepper-val">1</span>
+            <button class="confirm-step-btn" id="confirm-stepper-plus">+</button>
+          </div>
+        </div>
+
+        <!-- Download Option -->
+        <div class="confirm-row">
+          <span class="confirm-label">Download</span>
+          <select class="confirm-select" id="confirm-select-download">
+            <option value="No">No</option>
+            <option value="Auto 4K" selected>Auto 4K</option>
+            <option value="Auto 2K">Auto 2K</option>
+            <option value="Auto Original">Auto Original</option>
+          </select>
+        </div>
+
+        <!-- Flow Submit Mode Selection -->
+        <div class="confirm-section-title">FLOW SUBMIT MODE</div>
+        <div class="confirm-mode-grid">
+          <button type="button" class="btn-mode-choice active" id="btn-mode-auto">
+            <div class="mode-title">⚡ Auto submit</div>
+            <div class="mode-desc">ZiggyFlow auto-clicks submit after filling prompt + refs</div>
+          </button>
+          <button type="button" class="btn-mode-choice" id="btn-mode-manual">
+            <div class="mode-title">⏱ Manual Submit</div>
+            <div class="mode-desc">You press Enter / click Submit on page with helper tooltip</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-modal-cancel" id="btn-confirm-run-cancel">Cancel</button>
+        <button type="button" class="btn-modal-run" id="btn-confirm-run-execute">▷ Run</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/bulk-downloader.js"></script>
+  <script src="js/workflow-builder.js"></script>
+  <script src="js/batch-generator.js"></script>
+  <script src="js/smart-tasks.js"></script>
+  <script src="js/prompt-templates.js"></script>
+  <script src="js/album-manager.js"></script>
+  <script src="js/multi-angle.js"></script>
+  <script src="js/image-effects.js"></script>
+  <script src="js/prompt-enhancer.js"></script>
+  <script src="js/telegram-settings.js"></script>
+  <script src="js/diagnostics.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/flow-connector.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+{
+  "workflows": [
+    {
+      "id": "wf_pipeline_1",
+      "name": "ChatGPT Image -> Flow Veo 3.1 Video Pipeline",
+      "description": "Generates a high-detail concept image with ChatGPT, enhances prompt with AI, then animates it into a 4K video using Google Flow Veo 3.1.",
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "generator_chatgpt",
+          "x": 80,
+          "y": 120,
+          "data": {
+            "title": "ChatGPT Image 2",
+            "prompt": "Hyper-realistic cinematic shot of a cybernetic samurai standing on a rainy Tokyo rooftop at twilight, neon reflections in puddles, volumetric lighting, 8k octane render",
+            "aspectRatio": "16:9",
+            "mediaType": "image"
+          }
+        },
+        {
+          "id": "node_2",
+          "type": "enhancer",
+          "x": 420,
+          "y": 120,
+          "data": {
+            "title": "AI Prompt Enhancer",
+            "style": "cinematic",
+            "intensity": 85
+          }
+        },
+        {
+          "id": "node_3",
+          "type": "generator_flow",
+          "x": 760,
+          "y": 120,
+          "data": {
+            "title": "Google Flow Veo 3.1",
+            "model": "Veo 3.1 Quality",
+            "prompt": "Smooth camera dolly forward, slow motion raindrops, glowing katana blade emitting lightning sparks, cinematic atmosphere, 60fps 4k video",
+            "aspectRatio": "16:9",
+            "mediaType": "video"
+          }
+        },
+        {
+          "id": "node_4",
+          "type": "download",
+          "x": 1100,
+          "y": 120,
+          "data": {
+            "title": "Auto 4K Download",
+            "folder": "AutoFlow/Pipelines/Samurai_Movie",
+            "resolution": "4K"
+          }
+        }
+      ],
+      "connections": [
+        { "from": "node_1", "to": "node_2" },
+        { "from": "node_2", "to": "node_3" },
+        { "from": "node_3", "to": "node_4" }
+      ]
+    },
+    {
+      "id": "wf_pipeline_2",
+      "name": "Multi-Angle Character Turnaround Suite",
+      "description": "Generates 8 camera angles of the same subject across Flow and Grok.",
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "camera_angle",
+          "x": 80,
+          "y": 160,
+          "data": {
+            "title": "Multi-Angle Generator",
+            "subject": "Cyberpunk female operative with holographic visor and carbon armor",
+            "preset": "8-angle-turnaround"
+          }
+        },
+        {
+          "id": "node_2",
+          "type": "generator_flow",
+          "x": 450,
+          "y": 160,
+          "data": {
+            "title": "Google Flow Render",
+            "model": "Nano Banana Pro",
+            "aspectRatio": "1:1",
+            "mediaType": "image"
+          }
+        },
+        {
+          "id": "node_3",
+          "type": "download",
+          "x": 800,
+          "y": 160,
+          "data": {
+            "title": "Auto 2K Download",
+            "folder": "AutoFlow/Character_Angles",
+            "resolution": "2K"
+          }
+        }
+      ],
+      "connections": [
+        { "from": "node_1", "to": "node_2" },
+        { "from": "node_2", "to": "node_3" }
+      ]
+    }
+  ],
+  "promptTemplates": [
+    {
+      "id": "tpl_1",
+      "title": "Cinematic Anamorphic Film Still",
+      "category": "Cinematic",
+      "style": "Cinematic",
+      "difficulty": "Pro",
+      "mediaType": "Both",
+      "prompt": "Cinematic 35mm film still of {subject}, shot on Arri Alexa with Panavision Anamorphic lenses, golden hour warm lighting, soft atmospheric haze, shallow depth of field, 8k raw color grade --ar 16:9",
+      "tags": ["cinema", "35mm", "anamorphic", "movie"]
+    },
+    {
+      "id": "tpl_2",
+      "title": "Cyberpunk Neon Rain Cityscape",
+      "category": "Sci-Fi / Cyberpunk",
+      "style": "Cyberpunk",
+      "difficulty": "Master",
+      "mediaType": "Both",
+      "prompt": "Breathtaking high-angle panoramic view of {subject} in a dense dystopian neo-metropolis, drenched in rain, holographic billboards reflecting on wet asphalt, volumetric god rays piercing heavy fog, Unreal Engine 5 render, cinematic lighting --ar 21:9",
+      "tags": ["cyberpunk", "neon", "rain", "scifi", "future"]
+    },
+    {
+      "id": "tpl_3",
+      "title": "National Geographic Wildlife Portrait",
+      "category": "Photorealistic",
+      "style": "Photorealism",
+      "difficulty": "Pro",
+      "mediaType": "Image",
+      "prompt": "Extreme macro close-up portrait of {subject}, National Geographic award-winning photography, shot on Sony A1 with 85mm f/1.4 GM lens, crisp eye reflections, intricate fur and skin textures, natural daylight, bokeh background --ar 4:5",
+      "tags": ["wildlife", "natgeo", "photography", "portrait", "8k"]
+    },
+    {
+      "id": "tpl_4",
+      "title": "Studio Ghibli Lush Anime Landscape",
+      "category": "Anime & Ghibli",
+      "style": "Anime",
+      "difficulty": "Beginner",
+      "mediaType": "Both",
+      "prompt": "Hand-painted anime background in the style of Studio Ghibli, featuring {subject}, vibrant emerald rolling meadows, fluffy cumulus clouds in a cerulean sky, soft afternoon sunlight, watercolor aesthetic, whimsical nostalgic atmosphere --ar 16:9",
+      "tags": ["ghibli", "anime", "landscape", "hayao miyazaki"]
+    },
+    {
+      "id": "tpl_5",
+      "title": "Dark Fantasy Eldritch Knight",
+      "category": "Fantasy & Mythology",
+      "style": "Dark Fantasy",
+      "difficulty": "Master",
+      "mediaType": "Both",
+      "prompt": "Dark fantasy epic portrait of {subject}, ornate engraved obsidian armor with glowing crimson runes, standing amidst crumbling gothic ruins under an eclipse, eerie volumetric mist, dynamic rim lighting, Bloodborne aesthetic, masterpiece --ar 16:9",
+      "tags": ["dark fantasy", "knight", "gothic", "souls"]
+    },
+    {
+      "id": "tpl_6",
+      "title": "Luxury Architectural Interior Villa",
+      "category": "Architecture",
+      "style": "Minimalist Luxury",
+      "difficulty": "Pro",
+      "mediaType": "Image",
+      "prompt": "Modern minimalist luxury architectural photograph of {subject}, open floor concept, floor-to-ceiling glass windows overlooking misty pine forest, raw travertine stone walls, warm recessed LED lighting, Scandinavian design, Architectural Digest cover --ar 16:9",
+      "tags": ["interior", "architecture", "modern", "design"]
+    },
+    {
+      "id": "tpl_7",
+      "title": "Commercial Product Studio Shot",
+      "category": "Product Photography",
+      "style": "Commercial",
+      "difficulty": "Beginner",
+      "mediaType": "Image",
+      "prompt": "High-end commercial studio product photography of {subject}, placed on polished black obsidian pedestal with gentle water ripples, dramatic dual studio softbox rim lighting, floating botanical ingredients, crisp focus, Hasselblad H6D-100c --ar 1:1",
+      "tags": ["product", "commercial", "studio", "luxury"]
+    },
+    {
+      "id": "tpl_8",
+      "title": "3D Octane Claymation Character",
+      "category": "3D CGI",
+      "style": "Claymation",
+      "difficulty": "Beginner",
+      "mediaType": "Both",
+      "prompt": "Adorable handcrafted claymation figure of {subject}, visible clay fingerprints and textures, stop-motion look, vibrant saturated colors, soft studio lighting with warm bounce, Octane 3D render --ar 1:1",
+      "tags": ["claymation", "3d", "cute", "character"]
+    }
+  ],
+  "effects": [
+    { "id": "fx_color_1", "category": "Color", "name": "Cyberpunk Neon", "promptModifier": "vibrant neon magenta and cyan color palette, high contrast, glowing chromatic aberration" },
+    { "id": "fx_color_2", "category": "Color", "name": "Vintage 90s Film", "promptModifier": "nostalgic 1990s 35mm film aesthetic, warm faded tones, subtle sepia tint, Kodak Portra 400" },
+    { "id": "fx_color_3", "category": "Color", "name": "Pastel Dream", "promptModifier": "soft pastel aesthetic, lavender and mint hues, dreamy desaturated palette, gentle wash" },
+    { "id": "fx_color_4", "category": "Color", "name": "Warm Golden Hour", "promptModifier": "bathed in warm golden hour sunset glow, rich amber highlights, long soft shadows" },
+    { "id": "fx_color_5", "category": "Color", "name": "Monochrome Noir", "promptModifier": "high-contrast black and white, dramatic chiaroscuro lighting, deep noir shadows, silver gelatin print" },
+    { "id": "fx_color_6", "category": "Color", "name": "Muted Earthy", "promptModifier": "earthy muted tones, olive green, warm ochre, subdued Nordic natural palette" },
+    { "id": "fx_color_7", "category": "Color", "name": "Bleach Bypass", "promptModifier": "gritty bleach bypass cinematography, desaturated colors with high silver retention, harsh contrast" },
+    { "id": "fx_color_8", "category": "Color", "name": "Technicolor 3-Strip", "promptModifier": "vintage 1950s 3-strip Technicolor film look, ultra-vivid primary reds and blues, glossy classic cinema" },
+
+    { "id": "fx_light_1", "category": "Light", "name": "Volumetric God Rays", "promptModifier": "dramatic volumetric sun rays beaming through atmosphere, atmospheric dust particles, crepuscular rays" },
+    { "id": "fx_light_2", "category": "Light", "name": "Studio Softbox", "promptModifier": "professional studio softbox lighting, perfectly balanced diffuse illumination, zero harsh shadows" },
+    { "id": "fx_light_3", "category": "Light", "name": "Dramatic Rim Light", "promptModifier": "intense edge rim lighting outlining the subject silhouette, moody backlit ambiance" },
+    { "id": "fx_light_4", "category": "Light", "name": "Bioluminescent Glow", "promptModifier": "glowing bioluminescent neon organic lighting, Avatar Pandora aesthetic, ethereal cyan glow" },
+    { "id": "fx_light_5", "category": "Light", "name": "Anamorphic Lens Flare", "promptModifier": "horizontal blue streak anamorphic lens flares, JJ Abrams cinematic optical artifacts" },
+    { "id": "fx_light_6", "category": "Light", "name": "Cyber Neon Glow", "promptModifier": "intense multi-colored neon light bounce reflecting off skin and surfaces, Tokyo night glow" },
+    { "id": "fx_light_7", "category": "Light", "name": "Moonlight Shadow", "promptModifier": "cool pale blue moonlight casting deep midnight shadows, mystical nocturnal illumination" },
+
+    { "id": "fx_weather_1", "category": "Weather", "name": "Rainy Cyberpunk", "promptModifier": "heavy torrential rain, wet reflective surfaces, dripping water droplets, illuminated by streetlights" },
+    { "id": "fx_weather_2", "category": "Weather", "name": "Dense Atmospheric Fog", "promptModifier": "thick ethereal fog rolling across scene, low visibility, mysterious soft gradient depth" },
+    { "id": "fx_weather_3", "category": "Weather", "name": "Blizzard Snowstorm", "promptModifier": "swirling snowstorm blizzard, flying frosty snowflakes, icy frozen textures on edges" },
+    { "id": "fx_weather_4", "category": "Weather", "name": "Lightning Storm", "promptModifier": "dramatic thunderstorm sky with violent purple lightning fork arcs illuminating the sky" },
+    { "id": "fx_weather_5", "category": "Weather", "name": "Sunburst Flares", "promptModifier": "blinding radiant sunburst flare breaking through horizon, golden lens glow" },
+    { "id": "fx_weather_6", "category": "Weather", "name": "Desert Duststorm", "promptModifier": "harsh orange sandstorm blowing sand particles, post-apocalyptic Mad Max dust haze" },
+
+    { "id": "fx_art_1", "category": "Artistic", "name": "Studio Ghibli", "promptModifier": "Hayao Miyazaki anime illustration style, painterly background, whimsical Ghibli aesthetic" },
+    { "id": "fx_art_2", "category": "Artistic", "name": "Impasto Oil Painting", "promptModifier": "thick textured oil paint impasto brushstrokes, rich palette knife gouache, canvas texture" },
+    { "id": "fx_art_3", "category": "Artistic", "name": "Watercolor Splatter", "promptModifier": "loose watercolor wash with ink splashes, vibrant wet-on-wet paint bleeding on raw paper" },
+    { "id": "fx_art_4", "category": "Artistic", "name": "Unreal Engine 5 Render", "promptModifier": "hyper-detailed 3D Unreal Engine 5 render, Lumen global illumination, Nanite geometry, Octane look" },
+    { "id": "fx_art_5", "category": "Artistic", "name": "Claymation", "promptModifier": "charming claymation stop-motion clay model, plasticine texture, tactile fingerprints" },
+    { "id": "fx_art_6", "category": "Artistic", "name": "Comic Book Ink", "promptModifier": "graphic novel comic art style, bold dynamic black ink crosshatching, halftone dots" },
+
+    { "id": "fx_tex_1", "category": "Texture", "name": "35mm Film Grain", "promptModifier": "authentic analogue 35mm film grain, organic silver halide texture, vintage softness" },
+    { "id": "fx_tex_2", "category": "Texture", "name": "Halftone Print", "promptModifier": "vintage newspaper print halftone dot pattern, retro CMYK color misalignment" },
+    { "id": "fx_tex_3", "category": "Texture", "name": "Glitch VHS Tape", "promptModifier": "90s VHS tape glitch artifacts, tracking scanlines, CRT RGB color fringing" },
+    { "id": "fx_tex_4", "category": "Texture", "name": "Holographic Sheen", "promptModifier": "iridescent holographic rainbow sheen, reflective foil prism coating" },
+    { "id": "fx_tex_5", "category": "Texture", "name": "Matte Charcoal", "promptModifier": "raw smudged charcoal sketch texture on coarse paper, expressive graphite strokes" }
+  ]
+}
