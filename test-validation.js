@@ -36,7 +36,8 @@ const jsFiles = [
   'ui/js/prompt-enhancer.js',
   'ui/js/telegram-settings.js',
   'ui/js/diagnostics.js',
-  'ui/js/settings.js'
+  'ui/js/settings.js',
+  'ui/js/dom-templates.js'
 ];
 
 jsFiles.forEach(file => {

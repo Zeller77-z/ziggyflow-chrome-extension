@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (window.TelegramSettings) window.TelegramSettings.init();
       if (window.DiagnosticsManager) window.DiagnosticsManager.init();
       if (window.SettingsManager) window.SettingsManager.init();
+      if (window.DomTemplatesManager) window.DomTemplatesManager.init();
 
       console.log("TobyFlow Studio UI Initialized.");
     },

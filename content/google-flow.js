@@ -49,9 +49,32 @@
         return true;
       }
 
-      if (request.action === "START_ELEMENT_PICKER") {
-        startElementPicker(request.targetType || "generate");
+      if (request.action === "START_VISUAL_ELEMENT_MAPPER" || request.action === "START_ELEMENT_PICKER") {
+        startVisualElementMapper(request.slotName || request.targetType || "generateButton", request.friendlyLabel, request.templateId);
         sendResponse({ success: true });
+        return true;
+      }
+
+      if (request.action === "TEST_DOM_ELEMENT_ACTION") {
+        const slotData = request.template?.[request.slotName];
+        const el = resolveTemplateElement(slotData);
+        if (el) {
+          if (request.actionType === "highlight") {
+            highlightElement(el, "#38bdf8");
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          } else if (request.actionType === "click") {
+            highlightElement(el, "#a3e635");
+            clickButtonCleanly(el);
+          }
+          const rect = el.getBoundingClientRect();
+          sendResponse({
+            found: true,
+            tag: el.tagName,
+            rect: `${Math.round(rect.width)}x${Math.round(rect.height)}`
+          });
+        } else {
+          sendResponse({ found: false });
+        }
         return true;
       }
 
@@ -145,30 +168,41 @@
   setInterval(injectHeaderButton, 3000);
 
   // =============================================
-  // 2. MANUAL ELEMENT MAPPER TOOL (Visual Picker)
+  // 2. VISUAL ELEMENT MAPPER & TEMPLATE RESOLVER
   // =============================================
-  function startElementPicker(targetType) {
+  function startVisualElementMapper(slotName, friendlyLabel, templateId) {
     const existing = document.getElementById("ziggyflow-element-picker-overlay");
     if (existing) existing.remove();
 
-    const targetLabel = targetType;
     const overlay = document.createElement("div");
     overlay.id = "ziggyflow-element-picker-overlay";
     overlay.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       z-index: 2147483640; cursor: crosshair; pointer-events: auto;
-      background: rgba(0, 0, 0, 0.15);
+      background: rgba(0, 0, 0, 0.2);
     `;
 
     const banner = document.createElement("div");
     banner.style.cssText = `
       position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-      background: #18191d; color: #fff; border: 1.5px solid #a3e635;
-      padding: 10px 24px; border-radius: 9999px; font-weight: 700;
+      background: #141519; color: #fff; border: 1.5px solid #38bdf8;
+      padding: 10px 24px; border-radius: 9999px; font-weight: 700; font-size: 13px;
       z-index: 2147483645; pointer-events: none;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 15px rgba(56,189,248,0.4);
+      display: flex; align-items: center; gap: 8px; font-family: sans-serif;
     `;
-    banner.innerHTML = `🎯 Mapping ${targetLabel.toUpperCase()}: Click element • ESC to cancel`;
+    banner.innerHTML = `<span>📍</span> <span><b>Visual Mapper</b>: Click on <b>${friendlyLabel || slotName}</b> • Press <b>ESC</b> to cancel</span>`;
     document.body.appendChild(banner);
+
+    // Hover tooltip pill
+    const tooltip = document.createElement("div");
+    tooltip.style.cssText = `
+      position: fixed; display: none; z-index: 2147483646; pointer-events: none;
+      background: #0f172a; color: #38bdf8; border: 1px solid #38bdf8;
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.7); font-family: monospace;
+    `;
+    document.body.appendChild(tooltip);
 
     let lastHovered = null;
     const handleMouseMove = (e) => {
@@ -176,14 +210,23 @@
       const el = document.elementFromPoint(e.clientX, e.clientY);
       overlay.style.pointerEvents = "auto";
 
-      if (el && el !== overlay && el !== banner && !el.closest("#ziggyflow-injected-header-btn")) {
+      if (el && el !== overlay && el !== banner && el !== tooltip && !isExtensionElement(el)) {
         if (lastHovered && lastHovered !== el) {
           lastHovered.style.outline = "";
           lastHovered.style.boxShadow = "";
         }
         lastHovered = el;
-        el.style.outline = "3px solid #a3e635";
-        el.style.boxShadow = "0 0 20px rgba(163,230,53,0.7)";
+        el.style.outline = "3px solid #38bdf8";
+        el.style.boxShadow = "0 0 25px rgba(56,189,248,0.8)";
+
+        // Update tooltip position & label
+        const rect = el.getBoundingClientRect();
+        tooltip.style.display = "block";
+        tooltip.style.left = `${Math.min(window.innerWidth - 180, Math.max(10, e.clientX + 15))}px`;
+        tooltip.style.top = `${Math.min(window.innerHeight - 40, Math.max(10, e.clientY + 15))}px`;
+        const pctX = Math.round((rect.left / window.innerWidth) * 100);
+        const pctY = Math.round((rect.top / window.innerHeight) * 100);
+        tooltip.innerText = `<${el.tagName.toLowerCase()}> (${pctX}% X, ${pctY}% Y)`;
       }
     };
 
@@ -193,27 +236,49 @@
       let targetEl = document.elementFromPoint(e.clientX, e.clientY);
       overlay.style.pointerEvents = "auto";
 
-      if (targetEl && targetEl !== overlay && targetEl !== banner) {
-        // Smart-snap to actual input or button
-        if (targetType === "prompt") {
+      if (targetEl && targetEl !== overlay && targetEl !== banner && !isExtensionElement(targetEl)) {
+        // Smart-snap to input or button
+        if (slotName.toLowerCase().includes("prompt")) {
           const innerInput = targetEl.querySelector('textarea, input[type="text"], [contenteditable="true"]') ||
-                             targetEl.closest('form, div.prompt-bar, div')?.querySelector('textarea, input[type="text"], [contenteditable="true"]');
+                             targetEl.closest('form, div')?.querySelector('textarea, input[type="text"], [contenteditable="true"]');
           if (innerInput) targetEl = innerInput;
-        } else if (targetType === "generate") {
+        } else if (slotName.toLowerCase().includes("generate") || slotName.toLowerCase().includes("button")) {
           const parentBtn = targetEl.closest('button, [role="button"]');
           if (parentBtn) targetEl = parentBtn;
         }
 
+        const rect = targetEl.getBoundingClientRect();
         const selector = generateUniqueSelector(targetEl);
-        console.log(`ZiggyFlow: Mapped ${targetType} -> ${selector}`);
-        chrome.storage.local.get(['customElementMap'], (res) => {
-          const map = res.customElementMap || {};
-          map[targetType] = selector;
-          chrome.storage.local.set({ customElementMap: map }, () => {
-            showLiveToast(`✅ Mapped ${targetLabel} to: ${selector}`);
-          });
-        });
-        highlightElement(targetEl, "#bef264");
+        const xpath = generateXPath(targetEl);
+        const coords = {
+          pctX: Math.round((rect.left / window.innerWidth) * 1000) / 1000,
+          pctY: Math.round((rect.top / window.innerHeight) * 1000) / 1000,
+          clientX: Math.round(rect.left),
+          clientY: Math.round(rect.top)
+        };
+
+        const tagLabel = targetEl.tagName.toUpperCase() + (targetEl.id ? `#${targetEl.id}` : (targetEl.className ? `.${targetEl.className.split(' ')[0]}` : ''));
+        const mappedData = {
+          selector: selector,
+          xpath: xpath,
+          tag: targetEl.tagName,
+          label: `${tagLabel} (${Math.round(coords.pctX * 100)}% X, ${Math.round(coords.pctY * 100)}% Y)`,
+          coords: coords
+        };
+
+        console.log(`ZiggyFlow: Mapped ${slotName} ->`, mappedData);
+        highlightElement(targetEl, "#a3e635");
+        showLiveToast(`✅ Mapped ${friendlyLabel || slotName}!`);
+
+        // Send to ZiggyFlow UI to save in active template
+        chrome.runtime.sendMessage({
+          action: "ELEMENT_MAPPED_SUCCESS",
+          payload: {
+            slotName: slotName,
+            data: mappedData,
+            templateId: templateId || "default"
+          }
+        }).catch(() => {});
       }
       cleanup();
     };
@@ -222,7 +287,7 @@
 
     function cleanup() {
       if (lastHovered) { lastHovered.style.outline = ""; lastHovered.style.boxShadow = ""; }
-      overlay.remove(); banner.remove();
+      overlay.remove(); banner.remove(); tooltip.remove();
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("click", handleClick, true);
       window.removeEventListener("keydown", handleKeyDown);
@@ -264,16 +329,78 @@
     return path.join(" > ");
   }
 
-  async function getCustomSelector(key) {
+  function generateXPath(el) {
+    if (el.id) return `//*[@id='${el.id}']`;
+    if (el === document.body) return '/html/body';
+    let ix = 0;
+    const siblings = el.parentNode ? el.parentNode.childNodes : [];
+    for (let i = 0; i < siblings.length; i++) {
+      const sibling = siblings[i];
+      if (sibling === el) {
+        return `${generateXPath(el.parentNode)}/${el.tagName.toLowerCase()}[${ix + 1}]`;
+      }
+      if (sibling.nodeType === 1 && sibling.tagName === el.tagName) {
+        ix++;
+      }
+    }
+    return el.tagName.toLowerCase();
+  }
+
+  /** Resolves element from a mapped template slot using multi-tier fallback */
+  function resolveTemplateElement(slotData) {
+    if (!slotData) return null;
+
+    // 1. Try CSS Selector
+    if (slotData.selector) {
+      try {
+        const els = findAllDeep(slotData.selector).filter(e => !isExtensionElement(e) && e.offsetParent !== null);
+        if (els.length > 0) return els[0];
+      } catch (e) {}
+    }
+
+    // 2. Try XPath
+    if (slotData.xpath) {
+      try {
+        const result = document.evaluate(slotData.xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        if (result.singleNodeValue && !isExtensionElement(result.singleNodeValue)) {
+          return result.singleNodeValue;
+        }
+      } catch (e) {}
+    }
+
+    // 3. Try Physical Viewport Coordinate lookup (elementFromPoint)
+    if (slotData.coords && slotData.coords.pctX !== undefined) {
+      const clientX = Math.round(slotData.coords.pctX * window.innerWidth);
+      const clientY = Math.round(slotData.coords.pctY * window.innerHeight);
+      const coordEl = document.elementFromPoint(clientX, clientY);
+      if (coordEl && !isExtensionElement(coordEl)) {
+        if (slotData.tag && coordEl.tagName === slotData.tag) return coordEl;
+        const inner = coordEl.querySelector(slotData.tag?.toLowerCase() || 'button, textarea, input');
+        if (inner) return inner;
+        return coordEl;
+      }
+    }
+
+    return null;
+  }
+
+  async function getActiveTemplateConfig() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(['customElementMap', 'manualMappingEnabled'], (res) => {
-        if (!res.manualMappingEnabled) {
+      chrome.storage.local.get(['domTemplates', 'activeDomTemplateId'], (res) => {
+        if (!res.domTemplates) {
           resolve(null);
           return;
         }
-        resolve(res.customElementMap?.[key] || null);
+        const activeId = res.activeDomTemplateId || 'default';
+        resolve(res.domTemplates[activeId] || res.domTemplates['default'] || null);
       });
     });
+  }
+
+  async function getCustomSelector(key) {
+    const tpl = await getActiveTemplateConfig();
+    if (!tpl) return null;
+    return tpl[key]?.selector || null;
   }
 
   // =============================================
@@ -520,23 +647,51 @@
           generateBtn.style.pointerEvents = "auto";
         } catch (e) {}
 
-        // 4. Click the generate button cleanly (simulating genuine user click)
-        clickButtonCleanly(generateBtn);
-        await sleep(100);
+        // 4. Execute click strategy based on active template
+        const activeTpl = await getActiveTemplateConfig();
+        const strat = activeTpl?.clickStrategy || "standard";
+        console.log(`ZiggyFlow: Executing button click strategy: ${strat}`);
 
-        // 5. Native keyboard Enter fallback on prompt input
-        const enterEvt = new KeyboardEvent("keydown", {
-          key: "Enter",
-          code: "Enter",
-          keyCode: 13,
-          which: 13,
-          charCode: 13,
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-          view: window
-        });
-        promptInput.dispatchEvent(enterEvt);
+        if (strat === "coords" && activeTpl?.generateButton?.coords) {
+          const clientX = Math.round(activeTpl.generateButton.coords.pctX * window.innerWidth);
+          const clientY = Math.round(activeTpl.generateButton.coords.pctY * window.innerHeight);
+          const coordTarget = document.elementFromPoint(clientX, clientY) || generateBtn;
+          clickButtonCleanly(coordTarget);
+        } else if (strat === "enter") {
+          promptInput.focus();
+          const enterEvt = new KeyboardEvent("keydown", {
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            which: 13,
+            charCode: 13,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            view: window
+          });
+          promptInput.dispatchEvent(enterEvt);
+        } else if (strat === "double") {
+          clickButtonCleanly(generateBtn);
+          await sleep(60);
+          clickButtonCleanly(generateBtn);
+        } else {
+          // Standard Mouse Click Chain (default)
+          clickButtonCleanly(generateBtn);
+          await sleep(80);
+          const enterEvt = new KeyboardEvent("keydown", {
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            which: 13,
+            charCode: 13,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            view: window
+          });
+          promptInput.dispatchEvent(enterEvt);
+        }
 
         console.log("ZiggyFlow: Auto-Submit dispatched cleanly.");
       }
@@ -794,13 +949,14 @@
   // 6. PROMPT BOX LOCATOR
   // =============================================
   async function findExactPromptInput(timeout = 10000) {
-    // Strategy 0: Custom mapped selector
-    const customSel = await getCustomSelector("prompt");
-    if (customSel) {
-      let customEl = findAllDeep(customSel)[0];
-      if (customEl && customEl.offsetParent !== null) {
-        customEl = drillToLeafInput(customEl);
-        if (customEl) return customEl;
+    // Strategy 0: Active Custom DOM Template
+    const tpl = await getActiveTemplateConfig();
+    if (tpl?.promptInput) {
+      let templateEl = resolveTemplateElement(tpl.promptInput);
+      if (templateEl && templateEl.offsetParent !== null) {
+        templateEl = drillToLeafInput(templateEl) || templateEl;
+        console.log("ZiggyFlow: Resolved prompt input from active template:", tpl.name, templateEl);
+        return templateEl;
       }
     }
 
@@ -986,16 +1142,13 @@
   }
 
   async function findGenerateButton(promptInput, timeout = 8000) {
-    // Custom mapped selector
-    const customSel = await getCustomSelector("generate");
-    if (customSel) {
-      const customEl = findAllDeep(customSel).find(el => !isExtensionElement(el));
-      if (customEl && customEl.offsetParent !== null) {
-        const rect = customEl.getBoundingClientRect();
-        if (rect.top > window.innerHeight * 0.4) {
-          console.log("ZiggyFlow: Using custom mapped generate button:", customEl);
-          return customEl;
-        }
+    // Strategy 0: Active Custom DOM Template
+    const tpl = await getActiveTemplateConfig();
+    if (tpl?.generateButton) {
+      const templateEl = resolveTemplateElement(tpl.generateButton);
+      if (templateEl && templateEl.offsetParent !== null && !isExtensionElement(templateEl)) {
+        console.log("ZiggyFlow: Resolved generate button from active template:", tpl.name, templateEl);
+        return templateEl;
       }
     }
 
