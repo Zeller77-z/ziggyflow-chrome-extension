@@ -14,15 +14,10 @@
   let batchTimerInterval = null;
   let isSoundEnabled = true;
 
-  // Load previous gallery tasks from storage and populate initial HUD
+  // Load previous gallery tasks from storage and populate initial gallery
   chrome.storage.local.get(['recentGeneratedTasks'], (res) => {
     if (res?.recentGeneratedTasks && Array.isArray(res.recentGeneratedTasks) && res.recentGeneratedTasks.length > 0) {
       galleryHistoryTasks = res.recentGeneratedTasks.slice(-30);
-      if (currentBatchTasks.length === 0) {
-        currentBatchTasks = [galleryHistoryTasks[0]];
-        updateMiniSummary();
-        renderTaskList();
-      }
       renderExpandedGallery();
     }
   });
@@ -606,12 +601,15 @@
     });
 
     const triggerDownloadAll = () => {
-      const doneTasks = currentBatchTasks.filter(t => t.status === "done" && t.mediaUrl);
-      if (doneTasks.length === 0) {
+      let tasksToDownload = currentBatchTasks.filter(t => t.status === "done" && t.mediaUrl);
+      if (tasksToDownload.length === 0 && galleryHistoryTasks.length > 0) {
+        tasksToDownload = galleryHistoryTasks.filter(t => t.mediaUrl);
+      }
+      if (tasksToDownload.length === 0) {
         alert("No completed generations to download yet.");
         return;
       }
-      doneTasks.forEach(t => {
+      tasksToDownload.forEach(t => {
         chrome.runtime.sendMessage({
           action: "TRIGGER_DOWNLOAD",
           payload: { url: t.mediaUrl, prompt: t.prompt, provider: "Google Flow", resolution: "4K" }
@@ -785,66 +783,50 @@
         }
       }
 
-      // 2. Scan for video elements first
-      for (const video of document.querySelectorAll("video")) {
-        if (video.src && !video.closest("#ziggyflow-floating-hud")) {
-          if (!initialMediaSnapshot.has(video.src) || video.duration > 0 || video.readyState >= 2) {
-            console.log("ZiggyFlow: Live observer captured completed video:", video.src);
-            onTaskCompleted({
-              provider: "Google Flow",
-              prompt: activeGenTask.prompt,
-              mediaUrl: video.src,
-              type: "video"
-            });
-            clearInterval(canvasObserverInterval);
-            return;
+      const elapsed = Date.now() - (activeGenTask.startTime || Date.now());
+
+      // 2. Scan for newly created video elements
+      if (elapsed > 6000) {
+        for (const video of document.querySelectorAll("video")) {
+          const src = video.currentSrc || video.src;
+          if (src && !video.closest("#ziggyflow-floating-hud") && !initialMediaSnapshot.has(src)) {
+            if (video.duration > 0 || video.readyState >= 2 || src.startsWith("blob:") || src.includes(".mp4")) {
+              console.log("ZiggyFlow: Live observer captured newly rendered video:", src);
+              onTaskCompleted({
+                provider: "Google Flow",
+                prompt: activeGenTask.prompt,
+                mediaUrl: src,
+                type: "video"
+              });
+              clearInterval(canvasObserverInterval);
+              return;
+            }
           }
         }
-      }
 
-      // 3. Scan for completed canvas tile images (including top/newest tiles)
-      const allImgs = Array.from(document.querySelectorAll("img")).filter(img => {
-        if (!img.src || img.closest("#ziggyflow-floating-hud")) return false;
-        const rect = img.getBoundingClientRect();
-        if (rect.width < 60 || rect.height < 50) return false;
-        const src = img.src.toLowerCase();
-        if (src.includes("avatar") || src.includes("profile") || src.includes("icon") || src.includes("logo") || src.includes("placeholder")) return false;
-        return true;
-      });
-
-      // Prefer newly appeared images (not in initialMediaSnapshot)
-      const newlyAppeared = allImgs.find(img => !initialMediaSnapshot.has(img.src) && img.complete);
-      if (newlyAppeared && !activeGenTask.mediaUrl) {
-        console.log("ZiggyFlow: Live observer captured newly rendered image:", newlyAppeared.src);
-        onTaskCompleted({
-          provider: "Google Flow",
-          prompt: activeGenTask.prompt,
-          mediaUrl: newlyAppeared.src,
-          type: "image"
+        // 3. Scan for newly created canvas tile images
+        const allImgs = Array.from(document.querySelectorAll("img")).filter(img => {
+          const src = img.currentSrc || img.src;
+          if (!src || img.closest("#ziggyflow-floating-hud") || initialMediaSnapshot.has(src) || src.includes("media.html")) return false;
+          const rect = img.getBoundingClientRect();
+          if (rect.width < 60 || rect.height < 50) return false;
+          const s = src.toLowerCase();
+          if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return false;
+          return img.complete && img.naturalWidth > 60;
         });
-        clearInterval(canvasObserverInterval);
-        return;
-      }
 
-      // Fallback: check all valid completed canvas images
-      const validCompleted = allImgs.filter(img => img.complete && (img.naturalWidth > 100 || img.src.startsWith("blob:") || img.src.includes("googleusercontent")));
-      if (validCompleted.length > 0) {
-        // First/top or last image that is rendered
-        const targetImg = validCompleted[0];
-        if (targetImg && targetImg.src && !activeGenTask.mediaUrl) {
-          // If we have been generating for > 4s, accept the completed tile
-          const elapsed = Date.now() - (activeGenTask.startTime || Date.now());
-          if (elapsed > 4000) {
-            console.log("ZiggyFlow: Live observer captured top canvas image:", targetImg.src);
-            onTaskCompleted({
-              provider: "Google Flow",
-              prompt: activeGenTask.prompt,
-              mediaUrl: targetImg.src,
-              type: "image"
-            });
-            clearInterval(canvasObserverInterval);
-            return;
-          }
+        if (allImgs.length > 0 && !activeGenTask.mediaUrl) {
+          const fresh = allImgs[0];
+          const freshSrc = fresh.currentSrc || fresh.src;
+          console.log("ZiggyFlow: Live observer captured newly rendered image:", freshSrc);
+          onTaskCompleted({
+            provider: "Google Flow",
+            prompt: activeGenTask.prompt,
+            mediaUrl: freshSrc,
+            type: "image"
+          });
+          clearInterval(canvasObserverInterval);
+          return;
         }
       }
     }, 800);

@@ -857,6 +857,11 @@
       if (pill) pill.style.display = "none";
     } catch(e) {}
 
+    // 0. Snapshot existing tiles & media BEFORE submitting to prevent grabbing stale images
+    const preTileIds = getUniqueTileIds();
+    const preMediaSrcs = getExistingMediaSrcs();
+    console.log(`ZiggyFlow: Pre-submit snapshot: ${preTileIds.size} existing tiles, ${preMediaSrcs.size} existing media sources.`);
+
     // 1. Settings Popover (Aspect Ratio & Quantity)
     await configureGoogleFlowSettings(task);
     await sleep(250);
@@ -949,8 +954,8 @@
       console.log("ZiggyFlow: Auto-Submit completed via TobyFlow multi-tier bypass.");
     }
 
-    // 5. Track live generation smoothly with throttled progress monitor
-    const mediaResult = await trackGenerationProgress(240000);
+    // 5. Track live generation smoothly with TobyFlow-Grade tile diffing monitor
+    const mediaResult = await trackGenerationProgress(240000, preTileIds, preMediaSrcs, task);
     
     const mediaPayload = {
       provider: window.location.hostname.includes("gemini.google.com") ? "Google Gemini" : "Google Flow",
@@ -985,27 +990,102 @@
     } catch (e) {}
   }
 
-  /** High-performance throttled generation monitor — zero CPU lockup, zero recursion */
-  async function trackGenerationProgress(maxWaitMs = 240000) {
+  /** Gets all unique tile IDs currently on page */
+  function getUniqueTileIds() {
+    const tiles = document.querySelectorAll('[data-tile-id]');
+    const ids = new Set();
+    tiles.forEach(t => {
+      const id = t.getAttribute("data-tile-id") || t.dataset?.tileId;
+      if (id) ids.add(id);
+    });
+    return ids;
+  }
+
+  /** Gets all image/video src URLs currently on page */
+  function getExistingMediaSrcs() {
+    const srcs = new Set();
+    document.querySelectorAll('img, video').forEach(el => {
+      if (isExtensionElement(el)) return;
+      const s = el.currentSrc || el.src;
+      if (s && !s.startsWith("data:image/svg")) srcs.add(s);
+    });
+    return srcs;
+  }
+
+  /** TobyFlow-grade Tile Status Detector */
+  function detectTileStatus(tileEl) {
+    if (!tileEl) return "processing";
+
+    // 1. Check for valid rendered image/video in this tile
+    const video = tileEl.querySelector("video");
+    const img = tileEl.querySelector("img");
+    const media = video || img;
+
+    if (media && media.src && !media.src.startsWith("data:")) {
+      const src = media.currentSrc || media.src || "";
+      const rawSrc = media.getAttribute("src") || "";
+      const isPlaceholder = src.includes("media.html") || src.endsWith(".html") || rawSrc === "media.html" || rawSrc.endsWith(".html") ||
+        (!src.startsWith("http://") && !src.startsWith("https://") && !src.startsWith("blob:") && !rawSrc.startsWith("/fx/"));
+
+      const isLoaded = video ? (video.readyState >= 2 || video.duration > 0 || src.startsWith("blob:") || src.includes(".mp4"))
+                             : (img.complete && img.naturalWidth > 50);
+
+      if (!isPlaceholder && isLoaded) {
+        return "success";
+      }
+    }
+
+    // 2. Check for progress percentage (e.g. "45%")
+    const progressEl = Array.from(tileEl.querySelectorAll("div, span, p")).find(d => {
+      if (d.children.length > 2) return false;
+      return /^\d{1,3}%$/.test((d.textContent || "").trim());
+    });
+    if (progressEl) return "processing";
+
+    // 3. Check for generating icons (play_circle, progress_activity, sync, hourglass)
+    const genIcon = Array.from(tileEl.querySelectorAll("i, span")).find(el => {
+      const t = (el.textContent || "").trim();
+      return t === "play_circle" || t === "progress_activity" || t === "hourglass_empty" || t === "sync";
+    });
+    if (genIcon && isElementVisible(genIcon)) return "processing";
+
+    const isBusy = tileEl.getAttribute("aria-busy") === "true" || tileEl.querySelector('[aria-busy="true"], [role="progressbar"], .skeleton, .animate-spin');
+    if (isBusy) return "processing";
+
+    // 4. Check for warning/error icon
+    const warningIcon = Array.from(tileEl.querySelectorAll("i, span")).find(el => {
+      const t = (el.textContent || "").trim();
+      return t === "warning" || t === "error" || t === "report" || t === "refresh" || t === "error_outline";
+    });
+    if (warningIcon && isElementVisible(warningIcon)) return "failed";
+
+    return "processing";
+  }
+
+  function isElementVisible(el) {
+    if (!el) return false;
+    try {
+      const c = window.getComputedStyle(el);
+      if (c.opacity === "0" || c.visibility === "hidden" || c.display === "none") return false;
+      return el.offsetParent !== null;
+    } catch(e) {
+      return true;
+    }
+  }
+
+  /** TobyFlow-grade generation tracking with pre-submit tile snapshot diffing */
+  async function trackGenerationProgress(maxWaitMs = 240000, preTileIds = new Set(), preMediaSrcs = new Set(), task = {}) {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
+      const minGenerationWaitMs = 4500; // Never return before 4.5s to prevent grabbing old DOM elements
       let isResolved = false;
       let lastReportedProgress = "";
 
       const check = () => {
         if (isResolved) return;
+        const elapsed = Date.now() - startTime;
 
-        // 1. Check for newly finished media result
-        const media = getLatestRenderedMedia();
-        if (media) {
-          isResolved = true;
-          clearInterval(timer);
-          console.log("ZiggyFlow: Generation complete & extracted:", media);
-          resolve(media);
-          return;
-        }
-
-        // 2. Throttled lightweight progress percentage query
+        // 1. Throttled lightweight progress percentage query from DOM
         let liveProgress = null;
         const progressNodes = document.querySelectorAll('[aria-busy="true"], div.progress, [role="progressbar"], span, div');
         for (const node of progressNodes) {
@@ -1026,12 +1106,77 @@
           chrome.runtime.sendMessage({ action: "LIVE_RENDER_PROGRESS", progress: liveProgress }).catch(() => {});
         }
 
-        if (Date.now() - startTime > maxWaitMs) {
+        // 2. Strict TobyFlow Diffing: Scan for verified NEW tile elements
+        if (elapsed >= minGenerationWaitMs) {
+          const allTiles = Array.from(document.querySelectorAll('[data-tile-id]'));
+          const newTiles = allTiles.filter(tile => {
+            const tileId = tile.getAttribute("data-tile-id") || tile.dataset?.tileId;
+            return tileId && !preTileIds.has(tileId);
+          });
+
+          for (const newTile of newTiles) {
+            const status = detectTileStatus(newTile);
+            if (status === "success") {
+              const video = newTile.querySelector("video");
+              const img = newTile.querySelector("img");
+              const media = video || img;
+              const mediaUrl = media ? (media.currentSrc || media.src) : null;
+
+              if (mediaUrl && !preMediaSrcs.has(mediaUrl) && !mediaUrl.includes("media.html")) {
+                isResolved = true;
+                clearInterval(timer);
+                const res = {
+                  url: mediaUrl,
+                  type: video ? "video" : "image",
+                  tileId: newTile.getAttribute("data-tile-id") || newTile.dataset?.tileId
+                };
+                console.log("ZiggyFlow: Captured verified NEW tile media:", res);
+                resolve(res);
+                return;
+              }
+            } else if (status === "failed" && elapsed > 15000) {
+              isResolved = true;
+              clearInterval(timer);
+              reject(new Error("Generation failed on Google Flow tile (error/warning detected)."));
+              return;
+            }
+          }
+
+          // 3. Fallback for non-tile-container views (e.g. Gemini / un-tagged DOM)
+          const allFreshMedia = Array.from(document.querySelectorAll('video, img')).filter(el => {
+            if (isExtensionElement(el)) return false;
+            const src = el.currentSrc || el.src;
+            if (!src || preMediaSrcs.has(src) || src.includes("media.html") || src.startsWith("data:image/svg")) return false;
+            const rect = el.getBoundingClientRect();
+            if (rect.width < 80 || rect.height < 60) return false;
+            const s = src.toLowerCase();
+            if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return false;
+            
+            if (el.tagName === "VIDEO") {
+              return el.readyState >= 2 || el.duration > 0 || src.startsWith("blob:") || src.includes(".mp4");
+            }
+            return el.complete && el.naturalWidth > 60;
+          });
+
+          if (allFreshMedia.length > 0) {
+            const media = allFreshMedia[0];
+            const src = media.currentSrc || media.src;
+            isResolved = true;
+            clearInterval(timer);
+            const res = {
+              url: src,
+              type: media.tagName === "VIDEO" ? "video" : "image"
+            };
+            console.log("ZiggyFlow: Captured fresh non-snapshot media:", res);
+            resolve(res);
+            return;
+          }
+        }
+
+        if (elapsed > maxWaitMs) {
           isResolved = true;
           clearInterval(timer);
-          const fallback = getLatestRenderedMedia();
-          if (fallback) resolve(fallback);
-          else reject(new Error("Generation timed out on Google Flow."));
+          reject(new Error("Generation timed out on Google Flow."));
         }
       };
 
@@ -1043,10 +1188,10 @@
           return;
         }
         check();
-      }, 1200);
+      }, 1000);
 
-      // Initial check after short delay
-      setTimeout(check, 1800);
+      // Initial check after min generation delay
+      setTimeout(check, minGenerationWaitMs);
     });
   }
 
@@ -2126,11 +2271,6 @@
       const url = freshImg.currentSrc || freshImg.src;
       seenMediaUrls.add(url);
       return { url, type: "image" };
-    }
-
-    // If all seen but we have at least one valid image
-    if (validImgs.length > 0) {
-      return { url: validImgs[0].currentSrc || validImgs[0].src, type: "image" };
     }
 
     return null;
