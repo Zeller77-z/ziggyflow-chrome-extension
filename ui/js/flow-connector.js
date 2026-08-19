@@ -791,7 +791,7 @@ window.FlowConnector = {
     const selectVid = document.getElementById("select-model-video");
 
     if (this.activeProvider === "flow") {
-      if (selectImg) selectImg.innerHTML = `<option value="Nano Banana 2">🍌 Nano Banana 2</option><option value="Nano Banana Pro">🍌 Nano Banana Pro</option>`;
+      if (selectImg) selectImg.innerHTML = `<option value="Nano Banana Pro" selected>🍌 Nano Banana Pro</option><option value="Nano Banana 2">🍌 Nano Banana 2</option><option value="Imagen 3">✨ Imagen 3</option>`;
       if (selectVid) selectVid.innerHTML = `<option value="Omni Flash">Omni Flash</option><option value="Veo 3.1 Quality">Veo 3.1 Quality</option><option value="Veo 3.1 Fast">Veo 3.1 Fast</option><option value="Veo 3.1 Lite">Veo 3.1 Lite</option>`;
     } else if (this.activeProvider === "chatgpt") {
       if (selectImg) selectImg.innerHTML = `<option value="GPT Image 2">🤖 GPT Image 2</option>`;
@@ -900,7 +900,7 @@ window.FlowConnector = {
     const isVideo = this.mediaType === "video";
     const model = isVideo 
       ? (document.getElementById("select-model-video")?.value || "Omni Flash")
-      : (document.getElementById("select-model-image")?.value || "Nano Banana 2");
+      : (document.getElementById("select-model-image")?.value || "Nano Banana Pro");
     
     const ratioSelect = document.getElementById("confirm-select-ratio");
     const ratio = ratioSelect?.value || (isVideo

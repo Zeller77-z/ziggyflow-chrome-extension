@@ -575,15 +575,36 @@
   }
 
   // =============================================
-  // 4. GOOGLE FLOW SETTINGS POPOVER CONTROLLER
+  // 4. GOOGLE FLOW SETTINGS POPOVER CONTROLLER (TobyFlow Parity)
   // =============================================
+  function ratioToIconName(ratio) {
+    const r = String(ratio || "").toLowerCase().trim();
+    if (r.includes("16:9") || r === "ngang" || r === "widescreen" || r === "16_9" || r === "landscape") return "crop_16_9";
+    if (r.includes("4:3") || r === "4_3" || r === "ngang 4:3" || r === "landscape 4:3") return "crop_landscape";
+    if (r.includes("1:1") || r === "vuông" || r === "square" || r === "1_1") return "crop_square";
+    if (r.includes("3:4") || r === "3_4" || r === "dọc 3:4" || r === "portrait 3:4" || r === "portrait") return "crop_portrait";
+    if (r.includes("9:16") || r === "dọc" || r === "story" || r === "9_16") return "crop_9_16";
+    if (r.includes("21:9") || r === "cinema" || r === "ultrawide") return "crop_16_9";
+    return null;
+  }
+
+  function ratioToIdSuffix(ratio) {
+    const r = String(ratio || "").toLowerCase().trim();
+    if (r.includes("9:16") || r === "dọc" || r === "story" || r === "9_16") return "PORTRAIT";
+    if (r.includes("16:9") || r === "ngang" || r === "widescreen" || r === "16_9" || r.includes("21:9")) return "LANDSCAPE";
+    if (r.includes("1:1") || r === "vuông" || r === "square" || r === "1_1") return "SQUARE";
+    if (r.includes("4:3") || r === "landscape 4:3" || r === "4_3") return "LANDSCAPE_4_3";
+    if (r.includes("3:4") || r === "portrait 3:4" || r === "3_4") return "PORTRAIT_3_4";
+    return null;
+  }
+
   async function configureGoogleFlowSettings(task) {
     try {
       let popover = findSettingsPopover();
       if (!popover) {
         const settingsPill = findSettingsPillButton();
         if (settingsPill) {
-          console.log("ZiggyFlow: Opening settings popover via pill button:", settingsPill);
+          console.log("ZiggyFlow: Opening settings popover via button:", settingsPill);
           safeClick(settingsPill);
           await sleep(500);
           popover = findSettingsPopover();
@@ -591,71 +612,170 @@
       }
 
       if (!popover) {
-        console.log("ZiggyFlow: Settings popover not found, proceeding with defaults.");
+        console.log("ZiggyFlow: Settings popover not found on page, continuing with active preset.");
         return;
       }
 
-      console.log("ZiggyFlow: Settings popover found:", popover);
+      console.log("ZiggyFlow: Settings popover active:", popover);
 
-      // 1. Media Type: Image vs Video
+      // 1. Media Mode: Image vs Video
       if (task.type) {
-        const targetTypeLabel = task.type.toLowerCase() === "video" ? "video" : "image";
-        const typeChips = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], span, div'));
-        const typeBtn = typeChips.find(el => {
-          if (el.offsetParent === null) return false;
-          const t = (el.textContent || "").trim().toLowerCase();
-          return t === targetTypeLabel;
-        });
+        const targetType = task.type.toLowerCase() === "video" ? "video" : "image";
+        const typeSuffix = targetType === "video" ? "VIDEO" : "IMAGE";
+        
+        // Tier 1: ID suffix
+        let typeBtn = popover.querySelector(`button[id$="-trigger-${typeSuffix}"], [id*="-trigger-${typeSuffix}"]`);
         if (typeBtn) {
-          const btn = typeBtn.closest('button, [role="button"], [role="radio"], [role="tab"]') || typeBtn;
-          safeClick(btn);
-          await sleep(200);
-        }
-      }
-
-      // 2. Aspect Ratio: e.g. "16:9", "9:16", "1:1", "4:3", "3:4"
-      if (task.aspectRatio) {
-        const targetRatio = task.aspectRatio.trim();
-        const allItems = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], div, span'));
-        const ratioEl = allItems.find(el => {
-          if (el.offsetParent === null) return false;
-          const t = (el.textContent || "").trim();
-          const aria = (el.getAttribute("aria-label") || "").trim();
-          const title = (el.getAttribute("title") || "").trim();
-          return t === targetRatio || aria === targetRatio || title === targetRatio ||
-                 t.replace(/\s/g, "") === targetRatio ||
-                 (t.includes(targetRatio) && t.length < 15);
-        });
-
-        if (ratioEl) {
-          const targetBtn = ratioEl.closest('button, [role="button"], [role="radio"], [role="tab"]') || ratioEl;
-          console.log("ZiggyFlow: Clicking Aspect Ratio button:", targetRatio, targetBtn);
-          highlightElement(targetBtn, "#38bdf8");
-          safeClick(targetBtn);
+          safeClick(typeBtn);
           await sleep(250);
         } else {
-          console.warn("ZiggyFlow: Could not find ratio button for:", targetRatio);
+          // Tier 2: Text matching
+          const typeChips = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], span, div'));
+          const found = typeChips.find(el => {
+            if (el.offsetParent === null) return false;
+            const t = (el.textContent || "").trim().toLowerCase();
+            return t === targetType || (targetType === "image" && (t === "ảnh" || t === "image")) || (targetType === "video" && t === "video");
+          });
+          if (found) {
+            const btn = found.closest('button, [role="button"], [role="radio"], [role="tab"]') || found;
+            safeClick(btn);
+            await sleep(250);
+          }
         }
       }
 
-      // 3. Quantity: e.g. "x1", "x2", "x3", "x4"
-      if (task.quantity) {
-        const qtyCount = task.quantity;
-        const targetQtyStr = "x" + qtyCount;
-        const allItems = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], div, span'));
-        const qtyEl = allItems.find(el => {
-          if (el.offsetParent === null) return false;
-          const t = (el.textContent || "").trim().toLowerCase();
-          const aria = (el.getAttribute("aria-label") || "").trim().toLowerCase();
-          return !t.includes(":") && (t === targetQtyStr || t === String(qtyCount) || aria === targetQtyStr || (t.startsWith(targetQtyStr) && t.length < 6));
+      // 2. Aspect Ratio (16:9, 9:16, 1:1, 4:3, 3:4, 21:9)
+      if (task.aspectRatio) {
+        const targetRatio = String(task.aspectRatio).trim();
+        const suffix = ratioToIdSuffix(targetRatio);
+        const iconName = ratioToIconName(targetRatio);
+        let ratioClicked = false;
+
+        // Strategy A: Match by Radix Trigger ID Suffix
+        if (suffix) {
+          const ratioBtn = popover.querySelector(`button[id$="-trigger-${suffix}"], [id*="-trigger-${suffix}"]`) ||
+                           document.querySelector(`button[id$="-trigger-${suffix}"]`);
+          if (ratioBtn && ratioBtn.offsetParent !== null) {
+            console.log(`ZiggyFlow: Selected Ratio via ID suffix [-trigger-${suffix}]:`, ratioBtn);
+            highlightElement(ratioBtn, "#38bdf8");
+            safeClick(ratioBtn);
+            await sleep(250);
+            ratioClicked = true;
+          }
+        }
+
+        // Strategy B: Match by Material Icon Symbol (crop_square, crop_portrait, crop_16_9, crop_landscape)
+        if (!ratioClicked && iconName) {
+          const allButtons = Array.from(popover.querySelectorAll('button, [role="button"], [role="tab"], [role="radio"]'));
+          for (const btn of allButtons) {
+            if (btn.offsetParent === null) continue;
+            const icon = btn.querySelector('i.google-symbols, i[class*="symbol"], [data-icon]');
+            const iconTxt = icon ? (icon.textContent || "").trim() : "";
+            if (iconTxt === iconName) {
+              console.log(`ZiggyFlow: Selected Ratio via Material Icon [${iconName}]:`, btn);
+              highlightElement(btn, "#38bdf8");
+              safeClick(btn);
+              await sleep(250);
+              ratioClicked = true;
+              break;
+            }
+          }
+        }
+
+        // Strategy C: Match by aria-label, title, or text containing ratio strings
+        if (!ratioClicked) {
+          const allItems = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], div, span'));
+          const ratioEl = allItems.find(el => {
+            if (el.offsetParent === null) return false;
+            const t = (el.textContent || "").trim().toLowerCase();
+            const aria = (el.getAttribute("aria-label") || "").trim().toLowerCase();
+            const title = (el.getAttribute("title") || "").trim().toLowerCase();
+            const rLow = targetRatio.toLowerCase();
+            return t === rLow || aria === rLow || title === rLow ||
+                   t.includes(rLow) || aria.includes(rLow) ||
+                   (iconName && (t.includes(iconName) || aria.includes(iconName)));
+          });
+
+          if (ratioEl) {
+            const targetBtn = ratioEl.closest('button, [role="button"], [role="radio"], [role="tab"]') || ratioEl;
+            console.log("ZiggyFlow: Selected Ratio via Text/Aria match:", targetRatio, targetBtn);
+            highlightElement(targetBtn, "#38bdf8");
+            safeClick(targetBtn);
+            await sleep(250);
+            ratioClicked = true;
+          }
+        }
+
+        if (!ratioClicked) {
+          console.warn("ZiggyFlow: Could not find ratio selector button for:", targetRatio);
+        }
+      }
+
+      // 3. Model Selection: e.g. "Nano Banana Pro", "Nano Banana 2", "Veo 3.1 - Fast"
+      if (task.model) {
+        const targetModel = String(task.model).trim().toLowerCase();
+        const modelPickers = Array.from(popover.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"], button'));
+        
+        // Find the model dropdown trigger in popover
+        const modelBtn = modelPickers.find(b => {
+          if (b.offsetParent === null) return false;
+          const txt = (b.textContent || "").trim().toLowerCase();
+          return txt.includes("banana") || txt.includes("nano") || txt.includes("veo") || txt.includes("imagen") || txt.includes("model");
         });
 
-        if (qtyEl) {
-          const targetBtn = qtyEl.closest('button, [role="button"], [role="radio"], [role="tab"]') || qtyEl;
-          console.log("ZiggyFlow: Clicking Quantity button:", targetQtyStr, targetBtn);
-          highlightElement(targetBtn, "#38bdf8");
-          safeClick(targetBtn);
-          await sleep(250);
+        if (modelBtn) {
+          const currentText = (modelBtn.textContent || "").trim().toLowerCase();
+          if (!currentText.includes(targetModel)) {
+            console.log("ZiggyFlow: Opening model picker dropdown:", modelBtn);
+            safeClick(modelBtn);
+            await sleep(350);
+
+            // Locate open menu and click item
+            const menus = Array.from(document.querySelectorAll('[role="menu"], [role="listbox"], .cdk-overlay-pane'));
+            if (menus.length > 0) {
+              const activeMenu = menus[menus.length - 1];
+              const menuItems = Array.from(activeMenu.querySelectorAll('button, [role="menuitem"], [role="option"], div, span'));
+              const targetItem = menuItems.find(item => {
+                const itTxt = (item.textContent || "").trim().toLowerCase();
+                return itTxt.includes(targetModel) || (targetModel.includes("pro") && itTxt.includes("pro"));
+              });
+
+              if (targetItem) {
+                const clickTarget = targetItem.closest('button, [role="menuitem"], [role="option"]') || targetItem;
+                console.log("ZiggyFlow: Selected Model item in dropdown:", targetModel, clickTarget);
+                safeClick(clickTarget);
+                await sleep(250);
+              }
+            }
+          }
+        }
+      }
+
+      // 4. Quantity: e.g. "x1", "x2", "x3", "x4"
+      if (task.quantity) {
+        const qtyCount = task.quantity;
+        const qtySuffix = String(qtyCount);
+        
+        // Tier 1: ID suffix
+        const qtyBtn = popover.querySelector(`button[id$="-trigger-${qtySuffix}"], [id*="-trigger-${qtySuffix}"]`);
+        if (qtyBtn && qtyBtn.offsetParent !== null) {
+          safeClick(qtyBtn);
+          await sleep(200);
+        } else {
+          // Tier 2: Text matching
+          const allItems = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], div, span'));
+          const qtyEl = allItems.find(el => {
+            if (el.offsetParent === null) return false;
+            const t = (el.textContent || "").trim().toLowerCase();
+            const aria = (el.getAttribute("aria-label") || "").trim().toLowerCase();
+            return t === `x${qtyCount}` || t === String(qtyCount) || aria === `x${qtyCount}`;
+          });
+
+          if (qtyEl) {
+            const targetBtn = qtyEl.closest('button, [role="button"], [role="radio"], [role="tab"]') || qtyEl;
+            safeClick(targetBtn);
+            await sleep(200);
+          }
         }
       }
 
@@ -666,7 +786,7 @@
       } else {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true }));
       }
-      await sleep(350);
+      await sleep(300);
 
     } catch (err) {
       console.warn("ZiggyFlow: Settings error:", err);
@@ -674,20 +794,32 @@
   }
 
   function findSettingsPillButton() {
+    // 1. Check submit button sibling
+    const submitBtn = document.querySelector('[data-ziggy-generate="true"]');
+    if (submitBtn?.previousElementSibling && submitBtn.previousElementSibling.tagName === "BUTTON") {
+      return submitBtn.previousElementSibling;
+    }
+
+    // 2. Search by icon or text
     const candidates = findAllDeep('button, div[role="button"]');
     return candidates.find(el => {
-      if (el.offsetParent === null) return false;
+      if (el.offsetParent === null || isExtensionElement(el)) return false;
       const t = (el.textContent || "").toLowerCase();
+      const icon = el.querySelector('i.google-symbols, i[class*="symbol"], [data-icon]');
+      const iconTxt = icon ? (icon.textContent || "").trim() : "";
       const rect = el.getBoundingClientRect();
-      return rect.top > window.innerHeight * 0.4 &&
-        (t.includes("banana") || t.includes("veo") || t.includes("imagen") || t.includes("x1") || t.includes("x2") || t.includes("x3") || t.includes("x4") || t.includes("16:9") || t.includes("9:16") || t.includes("1:1")) && t.length < 60;
+      
+      const hasSettingsIcon = iconTxt === "tune" || iconTxt === "settings" || iconTxt === "sliders" || iconTxt.startsWith("crop_") || iconTxt === "aspect_ratio";
+      const hasSettingsText = (t.includes("banana") || t.includes("veo") || t.includes("imagen") || t.includes("x1") || t.includes("x2") || t.includes("x3") || t.includes("x4") || t.includes("16:9") || t.includes("9:16") || t.includes("1:1")) && t.length < 60;
+      
+      return rect.top > window.innerHeight * 0.35 && (hasSettingsIcon || hasSettingsText);
     });
   }
 
   function findSettingsPopover() {
     const candidates = findAllDeep('div, section, dialog, [role="dialog"], [role="menu"]');
     const matched = candidates.filter(el => {
-      if (el.offsetParent === null) return false;
+      if (el.offsetParent === null || isExtensionElement(el)) return false;
       const rect = el.getBoundingClientRect();
       if (rect.width < 120 || rect.width > 650 || rect.height < 80 || rect.height > 650) return false;
       const t = (el.textContent || "").toLowerCase();
@@ -695,7 +827,6 @@
     });
 
     if (matched.length > 0) {
-      // Pick smallest matching container (innermost dialog card)
       matched.sort((a, b) => {
         const areaA = a.getBoundingClientRect().width * a.getBoundingClientRect().height;
         const areaB = b.getBoundingClientRect().width * b.getBoundingClientRect().height;
