@@ -665,8 +665,33 @@
     return null;
   }
 
-  async function configureGoogleFlowSettings(task) {
+  
+  let _lastConfiguredSettings = null;
+
+  async function waitForFlowConcurrencySlot(maxConcurrent = 4) {
+    let waitCount = 0;
+    while (waitCount < 60) {
+      if (isTaskAborted) break;
+      const tiles = Array.from(document.querySelectorAll('[data-tile-id]'));
+      let activeGeneratingCount = 0;
+      for (const t of tiles) {
+        if (detectTileStatus(t) === "processing") activeGeneratingCount++;
+      }
+      if (activeGeneratingCount < maxConcurrent) break;
+      console.log('ZIG Flow: ' + activeGeneratingCount + ' tiles currently generating (limit ' + maxConcurrent + '). Waiting for slot...');
+      await sleep(1500);
+      waitCount++;
+    }
+  }
+
+  async function configureGoogleFlowSettings(task, force = false) {
     try {
+      const currentKey = (task.type || 'image') + '|' + (task.aspectRatio || '16:9') + '|' + (task.model || 'default') + '|' + (task.quantity || 1) + '|' + (task.duration || '5s') + '|' + (task.framingMode || 'default');
+      if (!force && _lastConfiguredSettings === currentKey) {
+        console.log('ZIG Flow: Settings already configured (' + currentKey + '), skipping popover reopen for fast continuous generation.');
+        return;
+      }
+
       let popover = findSettingsPopover();
       if (!popover) {
         const settingsPill = findSettingsPillButton();

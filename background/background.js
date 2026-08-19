@@ -495,29 +495,31 @@ class BackgroundController {
       this.currentTask = task;
       this.updateBadge();
       this.broadcast({ action: "TASK_STARTED", task });
-      this.log(`[QUEUE] Starting task: "${task.prompt.substring(0, 35)}..." on ${task.provider?.toUpperCase()}`);
+      this.log('[QUEUE] Submitting prompt: "' + task.prompt.substring(0, 35) + '..." on ' + (task.provider || "FLOW").toUpperCase());
 
       try {
         if (task.upstreamNodeId && this.workflowContext[task.upstreamNodeId]) {
           task.referenceImage = this.workflowContext[task.upstreamNodeId];
-          this.log(`[PIPELINE] Chained reference image from Node #${task.upstreamNodeId}`);
+          this.log('[PIPELINE] Chained reference image from Node #' + task.upstreamNodeId);
         }
 
         const res = await this.executeTask(task);
-        this.stats.completed += 1;
         if (this.currentBatch && Array.isArray(this.currentBatch.tasks)) {
           const item = this.currentBatch.tasks.find(t => t.id === task.id || t.prompt === task.prompt);
           if (item) {
-            item.status = "done";
-            if (res && res.url) item.mediaUrl = res.url;
-            if (res && res.type) item.type = res.type;
-            item.completedAt = Date.now();
+            item.status = "monitoring";
+            if (res && res.url) {
+              item.status = "done";
+              item.mediaUrl = res.url;
+              item.completedAt = Date.now();
+              this.stats.completed += 1;
+            }
           }
         }
         this.broadcastTracker();
-        this.log(`[SUCCESS] Completed task on ${task.provider?.toUpperCase()}!`);
+        this.log('[SUBMITTED] Prompt dispatched to ' + (task.provider || "FLOW").toUpperCase() + '!');
       } catch (err) {
-        this.log(`[ERROR] Generation failed on ${task.provider?.toUpperCase()}: ${err.message}`, "error");
+        this.log('[ERROR] Submission failed on ' + (task.provider || "FLOW").toUpperCase() + ': ' + err.message, "error");
         this.stats.failed += 1;
         if (this.currentBatch && Array.isArray(this.currentBatch.tasks)) {
           const item = this.currentBatch.tasks.find(t => t.id === task.id || t.prompt === task.prompt);
@@ -527,23 +529,12 @@ class BackgroundController {
           }
         }
         this.broadcastTracker();
-        if (task.retriesLeft && task.retriesLeft > 0) {
-          task.retriesLeft -= 1;
-          this.log(`[RETRY] Retrying task (${task.retriesLeft} retries left)...`);
-          this.taskQueue.push(task);
-        }
       }
 
-      // Calculate dynamic random delay based on TobyFlow af_settings
-      const settingsData = await chrome.storage.local.get(["af_settings"]);
-      const afSettings = settingsData.af_settings || {};
-      const minDelay = Number(afSettings.randomDelayMin) || 3;
-      const maxDelay = Math.max(minDelay, Number(afSettings.randomDelayMax) || 10);
-      const randomWaitSec = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-
-      if (this.taskQueue.length > 0) {
-        this.log(`[DELAY] Waiting ${randomWaitSec}s before next prompt...`);
-        await new Promise(r => setTimeout(r, randomWaitSec * 1000));
+      // Smooth continuous pacing between prompt submissions (2.0s)
+      if (this.taskQueue.length > 0 && !this.isPaused) {
+        this.log('[QUEUE] Pacing: next prompt in 2.0s...');
+        await new Promise(r => setTimeout(r, 2000));
       }
     }
 
@@ -552,7 +543,7 @@ class BackgroundController {
     this.updateBadge();
     this.broadcastTracker();
     this.broadcast({ action: "QUEUE_FINISHED", stats: this.stats });
-    this.log(`[DONE] Batch finished! Total: ${this.stats.completed} succeeded, ${this.stats.failed} failed.`);
+    this.log('[DONE] Batch prompt submissions completed! Total: ' + this.stats.completed + ' completed, ' + this.stats.failed + ' failed.');
 
     if (self.telegramBot && self.telegramBot.enabled && this.stats.total > 0) {
       const doneMsg = `🏁 *ZiggyFlow Batch Finished!*\n✅ Completed: ${this.stats.completed}\n❌ Failed: ${this.stats.failed}`;

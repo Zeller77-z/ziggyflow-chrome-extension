@@ -925,30 +925,30 @@ window.FlowConnector = {
     const prompts = (rawPrompt || "Cinematic scene").split(/\r?\n/).filter(p => p.trim().length > 0);
     const tasks = [];
 
-    for (let q = 0; q < this.quantity; q++) {
-      for (const p of prompts) {
-        tasks.push({
-          id: "gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
-          prompt: p,
-          provider: this.activeProvider,
-          type: this.mediaType,
-          model: model,
-          duration: this.duration,
-          framingMode: this.framingMode,
-          voice: this.voice,
-          aspectRatio: ratio,
-          quantity: this.quantity,
-          referenceImage: this.selectedReferenceImage,
-          startFrame: this.startFrameDataUrl,
-          endFrame: this.endFrameDataUrl,
-          project: subfolder,
-          resolution: res,
-          submitMode: this.submitMode || "auto",
-          downloadMode: downloadSelect,
-          autoDownload: !!this.autoDownload,
-          createdAt: Date.now()
-        });
-      }
+    for (let pi = 0; pi < prompts.length; pi++) {
+      const p = prompts[pi];
+      tasks.push({
+        id: "gen_" + Date.now() + "_" + pi + "_" + Math.random().toString(36).substring(2, 6),
+        prompt: p,
+        promptIndex: pi,
+        provider: this.activeProvider,
+        type: this.mediaType,
+        model: model,
+        duration: this.duration,
+        framingMode: this.framingMode,
+        voice: this.voice,
+        aspectRatio: ratio,
+        quantity: this.quantity,
+        referenceImage: this.selectedReferenceImage,
+        startFrame: this.startFrameDataUrl,
+        endFrame: this.endFrameDataUrl,
+        project: subfolder,
+        resolution: res,
+        submitMode: this.submitMode || "auto",
+        downloadMode: downloadSelect,
+        autoDownload: !!this.autoDownload,
+        createdAt: Date.now()
+      });
     }
 
     this.log(`[EXECUTE] Dispatching ${tasks.length} task(s) (${this.submitMode.toUpperCase()} submit, ${model}, ${ratio})...`);
