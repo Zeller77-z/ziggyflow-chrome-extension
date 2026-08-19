@@ -521,194 +521,6 @@
     });
   }
 
-  function populateTemplateSelector() {
-    const select = document.getElementById("zf-mini-select-template");
-    const stratSelect = document.getElementById("zf-mini-select-strategy");
-    if (!select) return;
-
-    chrome.storage.local.get(['domTemplates', 'activeDomTemplateId'], (res) => {
-      const templates = res.domTemplates || {};
-      const activeId = res.activeDomTemplateId || 'default';
-      select.innerHTML = '';
-      Object.values(templates).forEach(tpl => {
-        const opt = document.createElement("option");
-        opt.value = tpl.id;
-        opt.innerText = tpl.name;
-        if (tpl.id === activeId) opt.selected = true;
-        select.appendChild(opt);
-      });
-
-      const currentTpl = templates[activeId] || templates['default'] || {};
-      const currentStrat = currentTpl.clickStrategy || 'enter';
-      if (stratSelect) stratSelect.value = currentStrat;
-
-      updateMiniChips(currentStrat);
-      renderMiniStrategySettings(currentStrat, templates, activeId);
-
-      select.onchange = (e) => {
-        chrome.storage.local.set({ activeDomTemplateId: e.target.value });
-        populateTemplateSelector();
-      };
-
-      stratSelect.onchange = (e) => {
-        const strat = e.target.value;
-        if (templates[activeId]) {
-          templates[activeId].clickStrategy = strat;
-          chrome.storage.local.set({ domTemplates: templates });
-        }
-        updateMiniChips(strat);
-        renderMiniStrategySettings(strat, templates, activeId);
-      };
-
-      document.querySelectorAll('#zf-mini-strategy-chips .zf-chip-btn').forEach(btn => {
-        btn.onclick = () => {
-          const strat = btn.getAttribute('data-ministrat');
-          if (stratSelect) stratSelect.value = strat;
-          if (templates[activeId]) {
-            templates[activeId].clickStrategy = strat;
-            chrome.storage.local.set({ domTemplates: templates });
-          }
-          updateMiniChips(strat);
-          renderMiniStrategySettings(strat, templates, activeId);
-        };
-      });
-    });
-  }
-
-  function updateMiniChips(strat) {
-    document.querySelectorAll('#zf-mini-strategy-chips .zf-chip-btn').forEach(b => {
-      const isAct = b.getAttribute('data-ministrat') === strat;
-      b.classList.toggle('active', isAct);
-      b.style.background = isAct ? '#202619' : '#141519';
-      b.style.borderColor = isAct ? '#a3e635' : '#2e3038';
-      b.style.color = isAct ? '#a3e635' : '#cbd5e1';
-      b.style.fontWeight = isAct ? '700' : '600';
-    });
-  }
-
-  function renderMiniStrategySettings(strat, templates, activeId) {
-    const card = document.getElementById("zf-mini-strategy-dynamic-card");
-    if (!card) return;
-
-    const tpl = templates[activeId] || {};
-    if (!tpl.strategyConfig) tpl.strategyConfig = {};
-    const defaultCfgs = {
-      enter: { preDelay: 100, modifier: 'none', requestSubmit: true, reactDispatch: true },
-      standard: { hoverDelay: 80, holdDuration: 50, pointerEvents: true, forceFocus: true },
-      coords: { pctX: 0.88, pctY: 0.91, offsetX: 0, offsetY: 0 },
-      double: { clickCount: 2, burstInterval: 60, dispatchEnterAfter: true },
-      react_fiber: { resetValueTracker: true, traverseFiber: true, simulateBeforeInput: true },
-      automa_pipeline: { step1Focus: true, step2Type: true, step3Enter: true, step4BackupClick: true },
-      xpath_cascade: { customXPath: "//button[contains(@aria-label, 'generate')]", filterNegatives: true }
-    };
-    if (!tpl.strategyConfig[strat]) {
-      tpl.strategyConfig[strat] = { ...(defaultCfgs[strat] || {}) };
-    }
-    const cfg = tpl.strategyConfig[strat];
-
-    let html = '';
-    if (strat === 'enter') {
-      html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
-          <span>Pre-Delay:</span>
-          <span style="color:#a3e635;font-weight:700;">${cfg.preDelay || 100}ms</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
-          <span>React 18 Sync:</span>
-          <input type="checkbox" id="zf-mini-rf-sync" ${cfg.reactDispatch !== false ? 'checked' : ''} style="accent-color:#a3e635;" />
-        </div>
-      `;
-    } else if (strat === 'coords') {
-      html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
-          <span>Target Viewport:</span>
-          <span style="color:#a3e635;font-weight:700;">${Math.round((cfg.pctX || 0.88)*100)}% X, ${Math.round((cfg.pctY || 0.91)*100)}% Y</span>
-        </div>
-      `;
-    } else if (strat === 'double') {
-      html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
-          <span>Burst Count:</span>
-          <span style="color:#a3e635;font-weight:700;">${cfg.clickCount || 2}x</span>
-        </div>
-      `;
-    } else {
-      html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#cbd5e1;">
-          <span>Active Engine:</span>
-          <span style="color:#a3e635;font-weight:700;">${strat.toUpperCase()}</span>
-        </div>
-      `;
-    }
-
-    card.innerHTML = html;
-  }
-
-  async function executeMiniStudioGeneration() {
-    const input = document.getElementById("zf-mini-prompt-input");
-    const raw = input?.value.trim();
-    if (!raw) {
-      alert("Please enter a prompt first.");
-      return;
-    }
-
-    const prompts = raw.split(/\r?\n/).filter(p => p.trim().length > 0);
-    const tasks = [];
-
-    for (let q = 0; q < quantity; q++) {
-      for (const p of prompts) {
-        tasks.push({
-          id: "gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
-          prompt: p,
-          provider: activeProvider,
-          type: mediaType,
-          model: activeModel,
-          aspectRatio: activeRatio,
-          quantity: quantity,
-          submitMode: submitMode,
-          createdAt: Date.now()
-        });
-      }
-    }
-
-    const queueTab = document.querySelector('[data-zftab="queue"]');
-    if (queueTab) queueTab.click();
-
-    chrome.runtime.sendMessage({
-      action: "ENQUEUE_BATCH",
-      payload: { tasks }
-    });
-  }
-
-  function renderMiniGallery() {
-    const grid = document.getElementById("zf-mini-gallery-grid");
-    if (!grid) return;
-    grid.innerHTML = "";
-
-    if (galleryHistoryTasks.length === 0) {
-      grid.innerHTML = `<div style="grid-column:1/3;color:#64748b;font-size:11px;text-align:center;padding:12px;">No generated media yet.</div>`;
-      return;
-    }
-
-    galleryHistoryTasks.slice(0, 8).forEach(t => {
-      const item = document.createElement("div");
-      item.style.cssText = `
-        position: relative; aspect-ratio: 16/9; background: #0b0f19; border-radius: 6px; overflow: hidden; border: 1px solid #282a32;
-      `;
-      item.innerHTML = `
-        <img src="${t.mediaUrl}" style="width:100%;height:100%;object-fit:cover;" />
-        <button class="zf-icon-btn zf-icon-btn-lime" style="position:absolute;bottom:4px;right:4px;padding:2px 5px;font-size:9px;">⬇</button>
-      `;
-      item.querySelector("button")?.addEventListener("click", () => {
-        chrome.runtime.sendMessage({
-          action: "TRIGGER_DOWNLOAD",
-          payload: { url: t.mediaUrl, prompt: t.prompt, provider: "Google Flow", resolution: "4K" }
-        });
-      });
-      grid.appendChild(item);
-    });
-  }
-
   let initialMediaSnapshot = new Set();
 
   // =============================================
@@ -1316,6 +1128,13 @@
   } else {
     initOverlay();
   }
+
+  // Ensure mini HUD remains attached across Google Flow SPA route changes
+  setInterval(() => {
+    if (!document.getElementById("ziggyflow-floating-hud") && document.body) {
+      initOverlay();
+    }
+  }, 2500);
 })();
 
 
