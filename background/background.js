@@ -73,10 +73,18 @@ class BackgroundController {
           if (!this.isRunning) {
             this.taskQueue = [];
             this.stats = { completed: 0, failed: 0, total: 0 };
+            this.currentBatch = {
+              id: "job_" + Date.now(),
+              startedAt: Date.now(),
+              tasks: payload.tasks.map(t => ({ ...t }))
+            };
+          } else if (this.currentBatch) {
+            this.currentBatch.tasks.push(...payload.tasks.map(t => ({ ...t })));
           }
           this.taskQueue.push(...payload.tasks);
           this.stats.total += payload.tasks.length;
           this.updateBadge();
+          this.broadcastTracker();
           this.broadcast({ action: "BATCH_ENQUEUED", tasks: payload.tasks });
           this.log(`[QUEUE] Enqueued ${payload.tasks.length} task(s). Total in queue: ${this.taskQueue.length}`);
           if (!this.isRunning && !this.isPaused) {
@@ -91,19 +99,34 @@ class BackgroundController {
         if (!this.isRunning) {
           this.startQueueProcessing();
         }
+        this.broadcastTracker();
         sendResponse({ success: true });
         break;
 
       case "PAUSE_QUEUE":
+      case "pq:pauseJob":
         this.isPaused = true;
         this.isRunning = false;
         this.updateBadge();
+        this.broadcastTracker();
         this.log("[QUEUE] Processing paused.");
         sendResponse({ success: true });
         break;
 
       case "STOP_QUEUE":
+      case "pq:stopAll":
+      case "pq:stopJob":
         this.stopAllTasks();
+        this.broadcastTracker();
+        sendResponse({ success: true });
+        break;
+
+      case "pq:resumeJob":
+        this.isPaused = false;
+        if (!this.isRunning) {
+          this.startQueueProcessing();
+        }
+        this.broadcastTracker();
         sendResponse({ success: true });
         break;
 
@@ -437,6 +460,7 @@ class BackgroundController {
     this.isRunning = false;
     this.currentTask = null;
     this.updateBadge();
+    this.broadcastTracker();
     this.broadcast({ action: "QUEUE_FINISHED", stats: this.stats });
     this.log(`[DONE] Batch finished! Total: ${this.stats.completed} succeeded, ${this.stats.failed} failed.`);
 
@@ -444,6 +468,63 @@ class BackgroundController {
       const doneMsg = `🏁 *ZiggyFlow Batch Finished!*\n✅ Completed: ${this.stats.completed}\n❌ Failed: ${this.stats.failed}`;
       self.telegramBot.sendMessage(null, doneMsg, "Markdown");
     }
+  }
+
+  buildTrackerData() {
+    const isRunning = this.isRunning;
+    const completed = this.stats.completed;
+    const total = Math.max(1, this.stats.total || (this.currentBatch?.tasks?.length || 1));
+    const items = (this.currentBatch?.tasks || []).map((t, idx) => {
+      let state = "PENDING";
+      if (t.status === "done" || t.mediaUrl) state = "COMPLETED";
+      else if (t.status === "failed") state = "FAILED";
+      else if (this.currentTask && this.currentTask.id === t.id) state = "MONITORING";
+      else if (idx === 0 && isRunning) state = "MONITORING";
+
+      return {
+        id: t.id,
+        prompt: t.prompt,
+        promptText: t.prompt,
+        state: state,
+        model: t.model,
+        ratio: t.aspectRatio,
+        quantity: t.quantity || 1,
+        thumb: t.mediaUrl || null,
+        results: t.mediaUrl ? [{ url: t.mediaUrl, type: t.type || "image" }] : []
+      };
+    });
+
+    return {
+      isRunning,
+      completed,
+      total,
+      jobs: [
+        {
+          id: this.currentBatch?.id || ("job_" + Date.now()),
+          owner: "Google Flow",
+          label: "ZIG Flow Mini",
+          status: isRunning ? "running" : (this.stats.failed > 0 && completed === 0 ? "stopped" : "completed"),
+          completed,
+          failed: this.stats.failed,
+          total,
+          startedAt: this.currentBatch?.startedAt || Date.now(),
+          items
+        }
+      ]
+    };
+  }
+
+  broadcastTracker() {
+    const data = this.buildTrackerData();
+    chrome.tabs.query({}, (tabs) => {
+      if (!tabs) return;
+      tabs.forEach((tab) => {
+        chrome.tabs.sendMessage(tab.id, {
+          action: "pq:trackerUpdate",
+          data: data
+        }).catch(() => {});
+      });
+    });
   }
 
   async executeTask(task) {
@@ -513,6 +594,16 @@ class BackgroundController {
     if (data.nodeId) {
       this.workflowContext[data.nodeId] = data.mediaUrl;
     }
+
+    if (this.currentBatch && Array.isArray(this.currentBatch.tasks)) {
+      const item = this.currentBatch.tasks.find(t => t.id === data.taskId || t.prompt === data.prompt);
+      if (item) {
+        item.status = "done";
+        item.mediaUrl = data.mediaUrl;
+        item.type = data.type || "image";
+      }
+    }
+    this.broadcastTracker();
 
     if (self.downloadManager) {
       await self.downloadManager.triggerDownload({

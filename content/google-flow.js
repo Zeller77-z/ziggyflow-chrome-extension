@@ -78,6 +78,22 @@
         return true;
       }
 
+      if (request.action === "pq:trackerUpdate" && request.data) {
+        if (typeof self.FloatingTracker !== "undefined") {
+          self.FloatingTracker.update(request.data);
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+
+      if (request.action === "pq:trackerHide") {
+        if (typeof self.FloatingTracker !== "undefined") {
+          self.FloatingTracker.hide();
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+
       if (request.action === "ABORT_GENERATION") {
         isTaskAborted = true;
         showLiveToast("🛑 Generation Stopped by User", true);
