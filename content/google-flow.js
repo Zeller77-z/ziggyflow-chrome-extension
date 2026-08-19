@@ -1219,6 +1219,7 @@
             try {
               window.dispatchEvent(new CustomEvent("ZF_MEDIA_READY", { detail: itemPayload }));
               if (typeof window.__zf_onTaskCompleted === "function") window.__zf_onTaskCompleted(itemPayload);
+              updateFloatingTrackerDirectly(task, "COMPLETED", res.url);
             } catch(e) {}
 
             chrome.runtime.sendMessage({
@@ -2480,6 +2481,58 @@
   /** Setup TobyFlow-grade on-page manual generation detector.
    *  Only triggers on explicit trusted Enter in prompt box or explicit submit button.
    *  Guards against self-triggering and parallel rogue runs. */
+  
+  /** Direct Bridge to ZIG Mini Tracker on Page */
+  function updateFloatingTrackerDirectly(task, state, mediaUrl) {
+    if (typeof self.FloatingTracker !== "undefined" && task) {
+      var isRunning = (state === "MONITORING" || state === "SUBMITTING" || state === "generating");
+      var isDone = (state === "COMPLETED" || state === "done");
+      var isVid = task.type === "video" || (mediaUrl && String(mediaUrl).includes(".mp4"));
+      var trackerData = {
+        isRunning: isRunning,
+        completed: isDone ? 1 : 0,
+        total: 1,
+        jobs: [
+          {
+            id: task.id || ("job_" + Date.now()),
+            owner: "Google Flow",
+            label: "ZIG Mini Tracker",
+            status: isRunning ? "running" : (isDone ? "completed" : "stopped"),
+            completed: isDone ? 1 : 0,
+            failed: 0,
+            total: 1,
+            startedAt: task.startTime || Date.now(),
+            items: [
+              {
+                id: task.id || ("item_" + Date.now()),
+                prompt: task.prompt || "Google Flow Generation",
+                promptText: task.prompt || "Google Flow Generation",
+                promptIndex: 0,
+                state: state || (isRunning ? "MONITORING" : "COMPLETED"),
+                model: task.model || "Nano Banana Pro",
+                ratio: task.aspectRatio || "16:9",
+                genType: task.type || "image",
+                quantity: 1,
+                thumb: mediaUrl || null,
+                thumbVideo: isVid,
+                submittedAt: task.startTime || Date.now(),
+                completedAt: isDone ? Date.now() : null,
+                results: mediaUrl ? [{
+                  url: mediaUrl,
+                  video: isVid,
+                  playUrl: mediaUrl,
+                  type: task.type || (isVid ? "video" : "image"),
+                  fileName: "zigflow_1_" + ((task.prompt || "render").substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")) + (isVid ? ".mp4" : ".png")
+                }] : []
+              }
+            ]
+          }
+        ]
+      };
+      self.FloatingTracker.update(trackerData);
+    }
+  }
+
   function setupManualGenerationDetector() {
     let lastSubmitTime = 0;
 
@@ -2506,6 +2559,7 @@
       };
 
       try {
+        updateFloatingTrackerDirectly(manualTask, "MONITORING", null);
         window.dispatchEvent(new CustomEvent("ZF_TASK_STARTED", { detail: manualTask }));
         if (typeof window.__zf_onTaskStarted === "function") window.__zf_onTaskStarted(manualTask);
       } catch(e) {}
@@ -2533,6 +2587,24 @@
       }
     }, true);
   }
+
+  
+    document.addEventListener("click", (e) => {
+      if (!e.isTrusted) return;
+      if (window.__zf_automated_task_active || window.__zf_isTrackingGeneration) return;
+      const target = e.target;
+      if (!target || target.closest("#zigflow-flow-tracker")) return;
+      const btn = target.closest("button, div[role='button']");
+      if (btn) {
+        const text = (btn.textContent || btn.getAttribute("aria-label") || "").toLowerCase();
+        const isGenBtn = text.includes("generate") || text.includes("tạo") || btn.querySelector("svg path[d*='M5 12h14']") || btn.querySelector("svg polygon[points*='13 2 3 14']");
+        if (isGenBtn) {
+          const promptInput = document.querySelector('[data-slate-editor="true"], [contenteditable="true"][role="textbox"], textarea');
+          const val = (promptInput?.value || promptInput?.textContent || "").trim();
+          handleManualSubmit(val || "Google Flow Generation");
+        }
+      }
+    }, true);
 
   // Initialize manual generation detector
   setupManualGenerationDetector();
