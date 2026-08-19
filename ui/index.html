@@ -552,34 +552,112 @@
       </div>
     </section>
 
-    <!-- 2. WORKFLOW TAB -->
+    <!-- 2. WORKFLOW TAB (TobyFlow Parity Architecture) -->
     <section id="tab-workflow" class="tab-pane">
-      <div class="workflow-toolbar" style="margin-bottom:8px;">
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm btn-primary" id="wf-btn-add-node">➕ Add Node</button>
-          <button class="btn btn-sm btn-secondary" id="wf-btn-clear">Clear</button>
-          <button class="btn btn-sm btn-secondary" id="wf-btn-export">Export</button>
-          <button class="btn btn-sm btn-secondary" id="wf-btn-import">Import</button>
+      <!-- Workflow Subtabs Navigation Bar -->
+      <div class="wf-subtabs-nav">
+        <button class="wf-subtab-btn active" data-subtab="templates" id="wf-subtab-templates">
+          <span>📋</span>
+          <span>Templates</span>
+        </button>
+        <button class="wf-subtab-btn" data-subtab="workflows" id="wf-subtab-workflows">
+          <span>📁</span>
+          <span>My Workflows</span>
+          <span class="wf-subtab-badge" id="wf-saved-count">3</span>
+        </button>
+        <button class="wf-subtab-btn" data-subtab="editor" id="wf-subtab-editor">
+          <span>🎨</span>
+          <span>Visual Studio</span>
+        </button>
+      </div>
+
+      <!-- Subtab 1: Templates Catalog -->
+      <div class="wf-subtab-content active" id="wf-pane-templates">
+        <!-- Template Filter Category Chips -->
+        <div class="wf-template-filter-bar">
+          <button class="wf-filter-chip active" data-cat="all">All</button>
+          <button class="wf-filter-chip" data-cat="cinematic">🎬 Cinematic</button>
+          <button class="wf-filter-chip" data-cat="character">👤 Character</button>
+          <button class="wf-filter-chip" data-cat="social">📱 Shorts / Social</button>
+          <button class="wf-filter-chip" data-cat="ecommerce">🛍️ E-Commerce</button>
+          <button class="wf-filter-chip" data-cat="anime">⛩️ Anime / Art</button>
         </div>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm btn-secondary" id="wf-btn-sim-run">🧪 Test</button>
-          <button class="btn btn-sm btn-success" id="wf-btn-run">▶ Run Live</button>
+
+        <div class="wf-templates-grid" id="wf-templates-grid">
+          <!-- Populated dynamically via JS -->
         </div>
       </div>
 
-      <div class="node-palette" id="wf-palette" style="display:none;">
-        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;">Add Pipeline Node</div>
-        <div class="palette-item" data-node-type="generator_flow">🎬 Google Flow (Omni Flash / Veo 3.1)</div>
-        <div class="palette-item" data-node-type="generator_chatgpt">🎨 ChatGPT (GPT Image 2)</div>
-        <div class="palette-item" data-node-type="generator_grok">⚡ Grok (Aurora Video)</div>
-        <div class="palette-item" data-node-type="enhancer">🤖 AI Prompt Enhancer</div>
-        <div class="palette-item" data-node-type="download">⬇️ Auto 4K Download</div>
+      <!-- Subtab 2: My Saved Workflows -->
+      <div class="wf-subtab-content" id="wf-pane-workflows" style="display:none;">
+        <div class="wf-workflows-header">
+          <div style="font-weight:700;font-size:12px;color:#cbd5e1;">Saved Automation Pipelines</div>
+          <button class="btn btn-sm btn-primary" id="wf-btn-create-blank">➕ + New Blank Pipeline</button>
+        </div>
+        <div class="wf-saved-list" id="wf-saved-list">
+          <!-- Populated dynamically via JS -->
+        </div>
       </div>
 
-      <div class="workflow-pane-container">
-        <div class="workflow-canvas-container" id="wf-canvas-container">
-          <div class="workflow-canvas" id="wf-canvas">
-            <svg class="workflow-svg-layer" id="wf-svg-layer"></svg>
+      <!-- Subtab 3: Visual Canvas Editor Studio -->
+      <div class="wf-subtab-content" id="wf-pane-editor" style="display:none;">
+        <div class="workflow-toolbar">
+          <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-primary" id="wf-btn-add-node">➕ Add Node</button>
+            <button class="btn btn-sm btn-secondary" id="wf-btn-save-wf" title="Save Workflow">💾 Save</button>
+            <button class="btn btn-sm btn-secondary" id="wf-btn-clear" title="Clear Canvas">🗑️ Clear</button>
+            <button class="btn btn-sm btn-secondary" id="wf-btn-export" title="Export JSON">📤 Export</button>
+            <button class="btn btn-sm btn-secondary" id="wf-btn-import" title="Import JSON">📥 Import</button>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <button class="btn btn-sm btn-secondary" id="wf-btn-sim-run" title="Test Run Simulation">🧪 Test</button>
+            <button class="btn btn-sm btn-success" id="wf-btn-run" title="Run Pipeline Live on Browser Tabs">▶ Run Live</button>
+          </div>
+        </div>
+
+        <!-- Node Palette Dropdown -->
+        <div class="node-palette" id="wf-palette" style="display:none;">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;">Add Pipeline Node</div>
+          <div class="palette-item" data-node-type="generator_flow">🎬 Google Flow (Nano Banana Pro / Veo 3.1)</div>
+          <div class="palette-item" data-node-type="generator_chatgpt">🎨 ChatGPT (GPT Image 2)</div>
+          <div class="palette-item" data-node-type="generator_grok">⚡ Grok (Aurora Video / Imagine)</div>
+          <div class="palette-item" data-node-type="enhancer">🤖 AI Prompt Enhancer</div>
+          <div class="palette-item" data-node-type="camera_angle">📐 3D Multi-Angle Camera 360°</div>
+          <div class="palette-item" data-node-type="image_effects">🌙 Image FX Shader Filter</div>
+          <div class="palette-item" data-node-type="download">⬇️ Auto 4K Download</div>
+          <div class="palette-item" data-node-type="telegram_notify">📱 Telegram Bot Notification</div>
+        </div>
+
+        <div class="workflow-pane-container">
+          <div class="workflow-canvas-container" id="wf-canvas-container">
+            <div class="workflow-canvas" id="wf-canvas">
+              <svg class="workflow-svg-layer" id="wf-svg-layer"></svg>
+            </div>
+
+            <!-- Canvas Floating Zoom / Fit Controls -->
+            <div class="wf-canvas-controls">
+              <button class="wf-control-btn" id="wf-btn-zoom-in" title="Zoom In">+</button>
+              <span class="wf-zoom-level" id="wf-zoom-level">100%</span>
+              <button class="wf-control-btn" id="wf-btn-zoom-out" title="Zoom Out">-</button>
+              <button class="wf-control-btn" id="wf-btn-zoom-fit" title="Fit to View">⛶</button>
+            </div>
+          </div>
+
+          <!-- Execution Console Drawer -->
+          <div class="wf-execution-drawer" id="wf-execution-drawer">
+            <div class="wf-drawer-header" id="wf-drawer-header">
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#94a3b8;">
+                <span id="wf-drawer-icon">⚡</span>
+                <span id="wf-drawer-title">Pipeline Execution Log</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="badge" id="wf-exec-status-badge" style="background:#1e293b;color:#94a3b8;font-size:10px;">Ready</span>
+                <span style="cursor:pointer;color:#64748b;font-size:12px;" id="wf-drawer-toggle">▼</span>
+              </div>
+            </div>
+            <div class="wf-drawer-body" id="wf-drawer-body" style="display:none;">
+              <div id="wf-log-content" style="font-family:monospace;font-size:10.5px;color:#cbd5e1;max-height:100px;overflow-y:auto;line-height:1.5;"></div>
+            </div>
           </div>
         </div>
       </div>
