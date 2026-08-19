@@ -396,7 +396,17 @@ class BackgroundController {
         }
       }
 
-      await new Promise(r => setTimeout(r, 2500));
+      // Calculate dynamic random delay based on TobyFlow af_settings
+      const settingsData = await chrome.storage.local.get(["af_settings"]);
+      const afSettings = settingsData.af_settings || {};
+      const minDelay = Number(afSettings.randomDelayMin) || 3;
+      const maxDelay = Math.max(minDelay, Number(afSettings.randomDelayMax) || 10);
+      const randomWaitSec = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+
+      if (this.taskQueue.length > 0) {
+        this.log(`[DELAY] Waiting ${randomWaitSec}s before next prompt...`);
+        await new Promise(r => setTimeout(r, randomWaitSec * 1000));
+      }
     }
 
     this.isRunning = false;
@@ -406,7 +416,7 @@ class BackgroundController {
     this.log(`[DONE] Batch finished! Total: ${this.stats.completed} succeeded, ${this.stats.failed} failed.`);
 
     if (self.telegramBot && self.telegramBot.enabled && this.stats.total > 0) {
-      const doneMsg = `🏁 *TobyFlow Batch Finished!*\n✅ Completed: ${this.stats.completed}\n❌ Failed: ${this.stats.failed}`;
+      const doneMsg = `🏁 *ZiggyFlow Batch Finished!*\n✅ Completed: ${this.stats.completed}\n❌ Failed: ${this.stats.failed}`;
       self.telegramBot.sendMessage(null, doneMsg, "Markdown");
     }
   }
