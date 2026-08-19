@@ -16,6 +16,52 @@
       return true;
     }
 
+    if (request.action === "SCAN_PAGE_MEDIA") {
+      const mediaList = [];
+      const seenUrls = new Set();
+      const imgs = document.querySelectorAll("img");
+      imgs.forEach((img, idx) => {
+        const src = img.currentSrc || img.src;
+        if (!src || src.startsWith("data:image/svg") || seenUrls.has(src)) return;
+        const rect = img.getBoundingClientRect();
+        if (rect.width < 100 || rect.height < 100) return;
+        const s = src.toLowerCase();
+        if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo")) return;
+
+        seenUrls.add(src);
+        const title = img.alt || `Grok Image #${mediaList.length + 1}`;
+        mediaList.push({
+          id: "grok_img_" + Date.now() + "_" + idx,
+          url: src,
+          title: title.substring(0, 70),
+          type: "image",
+          width: Math.round(rect.width),
+          height: Math.round(rect.height)
+        });
+      });
+
+      const vids = document.querySelectorAll("video");
+      vids.forEach((vid, idx) => {
+        const src = vid.currentSrc || vid.src;
+        if (!src || seenUrls.has(src)) return;
+        const rect = vid.getBoundingClientRect();
+        if (rect.width < 100 || rect.height < 100) return;
+
+        seenUrls.add(src);
+        mediaList.push({
+          id: "grok_vid_" + Date.now() + "_" + idx,
+          url: src,
+          title: `Grok Video #${mediaList.length + 1}`,
+          type: "video",
+          width: Math.round(rect.width),
+          height: Math.round(rect.height)
+        });
+      });
+
+      sendResponse({ success: true, media: mediaList });
+      return true;
+    }
+
     if (request.action === "PING_DRIVER") {
       sendResponse({ status: "ready", provider: "grok", url: window.location.href, title: document.title });
       return true;

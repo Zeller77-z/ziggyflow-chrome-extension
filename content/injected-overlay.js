@@ -216,6 +216,7 @@
               </div>
               <span style="font-weight:800;font-size:12.5px;color:#ffffff;letter-spacing:0.2px;">TobyFlow</span>
               <button id="zf-btn-expand-gallery" class="zf-icon-btn" style="padding: 1px 5px; font-size: 10px;" title="Expand Results Grid">⤢</button>
+              <button id="zf-btn-detach-window" class="zf-icon-btn" style="padding: 1px 5px; font-size: 10px;" title="Detach Live Window / Popup">↗</button>
             </div>
 
             <div style="display:flex;align-items:center;gap:5px;">
@@ -559,6 +560,7 @@
     const gallery = host.querySelector("#zf-expanded-gallery-overlay");
     const btnClose = host.querySelector("#zf-btn-close-mini");
     const btnExpand = host.querySelector("#zf-btn-expand-gallery");
+    const btnDetach = host.querySelector("#zf-btn-detach-window");
     const btnCloseGallery = host.querySelector("#zf-btn-close-gallery");
     const btnDownloadAll = host.querySelector("#zf-btn-download-all");
     const btnGalleryDlAll = host.querySelector("#zf-btn-gallery-dl-all");
@@ -580,6 +582,11 @@
     btnExpand?.addEventListener("click", () => {
       renderExpandedGallery();
       gallery.style.display = "flex";
+    });
+
+    // Detach (↗) -> opens standalone detached popup window
+    btnDetach?.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ action: "OPEN_DETACHED_WINDOW" });
     });
 
     // Close Gallery modal (✕)

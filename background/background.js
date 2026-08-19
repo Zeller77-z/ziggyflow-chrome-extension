@@ -106,6 +106,17 @@ class BackgroundController {
         this.executeImmediateTask(payload).then(res => sendResponse(res));
         break;
 
+      case "OPEN_DETACHED_WINDOW":
+        chrome.windows.create({
+          url: chrome.runtime.getURL("ui/index.html?mode=detached"),
+          type: "popup",
+          width: 440,
+          height: 680,
+          focused: true
+        });
+        sendResponse({ success: true });
+        break;
+
       case "TRIGGER_DOWNLOAD":
         if (self.downloadManager) {
           self.downloadManager.triggerDownload(payload).then(res => sendResponse(res));

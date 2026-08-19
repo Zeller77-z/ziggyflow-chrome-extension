@@ -120,6 +120,62 @@
         return true;
       }
 
+      if (request.action === "SCAN_PAGE_MEDIA") {
+        const mediaList = [];
+        const seenUrls = new Set();
+
+        // 1. Scan images
+        const imgs = findAllDeep("img");
+        imgs.forEach((img, idx) => {
+          if (isExtensionElement(img)) return;
+          const src = img.currentSrc || img.src;
+          if (!src || src.startsWith("data:image/svg") || seenUrls.has(src)) return;
+          const rect = img.getBoundingClientRect();
+          if (rect.width < 80 || rect.height < 80) return;
+          const s = src.toLowerCase();
+          if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return;
+
+          seenUrls.add(src);
+          const parentCard = img.closest('div[role="group"], div[role="article"], div[class*="tile"], div[class*="card"], div[class*="item"]') || img.parentElement;
+          const title = img.alt || parentCard?.getAttribute?.("aria-label") || parentCard?.querySelector?.('p, span, div[class*="title"], div[class*="prompt"]')?.textContent?.trim() || `Flow Image #${mediaList.length + 1}`;
+
+          mediaList.push({
+            id: "img_" + Date.now() + "_" + idx,
+            url: src,
+            title: title.substring(0, 70),
+            type: "image",
+            width: Math.round(rect.width),
+            height: Math.round(rect.height)
+          });
+        });
+
+        // 2. Scan videos
+        const vids = findAllDeep("video");
+        vids.forEach((vid, idx) => {
+          if (isExtensionElement(vid)) return;
+          const src = vid.currentSrc || vid.src || vid.querySelector("source")?.src;
+          if (!src || seenUrls.has(src)) return;
+          const rect = vid.getBoundingClientRect();
+          if (rect.width < 80 || rect.height < 80) return;
+
+          seenUrls.add(src);
+          const parentCard = vid.closest('div[role="group"], div[role="article"], div[class*="tile"], div[class*="card"]') || vid.parentElement;
+          const title = parentCard?.getAttribute?.("aria-label") || parentCard?.querySelector?.('p, span, div[class*="title"], div[class*="prompt"]')?.textContent?.trim() || `Flow Video #${mediaList.length + 1}`;
+
+          mediaList.push({
+            id: "vid_" + Date.now() + "_" + idx,
+            url: src,
+            title: title.substring(0, 70),
+            type: "video",
+            width: Math.round(rect.width),
+            height: Math.round(rect.height)
+          });
+        });
+
+        sendResponse({ success: true, media: mediaList });
+        return true;
+      }
+
       if (request.action === "PING_DRIVER") {
         const projects = scanFlowProjects();
         sendResponse({
