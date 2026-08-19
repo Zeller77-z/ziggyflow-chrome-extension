@@ -1614,3 +1614,101 @@ body {
 }
 
 
+
+
+/* Minimalist Pill & SVG Enhancements */
+.pill-icon-circle {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #ccff00;
+  color: #121316;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.provider-pills {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.provider-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #1e2025;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-gray);
+  transition: all 0.15s ease;
+}
+
+.provider-pill:hover {
+  background: #252830;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.provider-pill.active-flow {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+}
+
+.provider-pill[data-provider="gemini"].active {
+  background: linear-gradient(135deg, rgba(27, 161, 227, 0.15) 0%, rgba(156, 108, 254, 0.15) 50%, rgba(255, 93, 143, 0.15) 100%);
+  border-color: rgba(156, 108, 254, 0.45);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(156, 108, 254, 0.25);
+}
+
+.provider-pill[data-provider="chatgpt"].active {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #fff;
+}
+
+.provider-pill[data-provider="grok"].active {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.crown-icon {
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.mode-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #18191d;
+  color: var(--text-gray);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mode-toggle-btn:hover {
+  background: #252830;
+  color: #fff;
+}
+
+.mode-toggle-btn.active {
+  background: #252830;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}

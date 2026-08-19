@@ -11,19 +11,31 @@
   <!-- Header Bar -->
   <header class="app-header">
     <div class="brand-section">
-      <div class="brand-icon">✨</div>
+      <div class="brand-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#121316" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </div>
       <span class="brand-name">ZiggyFlow</span>
     </div>
     <div class="header-icons">
-      <div class="header-icon-btn" id="hdr-btn-toggle" title="Flow Status">🟢</div>
-      <div class="header-icon-btn" id="hdr-btn-docs" title="Logs / Presets">📄</div>
-      <div class="header-icon-btn" id="hdr-btn-web" title="Web & Cloud Sync">🌐</div>
-      <div class="header-icon-btn" id="hdr-btn-settings" title="Settings">⚙️</div>
+      <div class="header-icon-btn header-icon-btn--capture" id="hdr-btn-toggle" title="Screen Capture">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccff00" stroke-width="1.8"><circle cx="12" cy="12" r="4" fill="#ccff00"/><path d="M22 12C22 16.7 22 19 20.5 20.5C19 22 16.7 22 12 22C7.3 22 5 22 3.5 20.5C2 19 2 16.7 2 12C2 7.3 2 5 3.5 3.5C5 2 7.3 2 12 2C16.7 2 19 2 20.5 3.5C21.5 4.4 21.8 5.8 21.9 8" stroke-linecap="round"/></svg>
+      </div>
+      <div class="header-icon-btn" id="hdr-btn-docs" title="Changelog / Docs">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+      </div>
+      <div class="header-icon-btn" id="hdr-btn-web" title="Web & Cloud Sync">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      </div>
+      <div class="header-icon-btn" id="hdr-btn-settings" title="Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
       <div class="header-icon-btn" id="hdr-btn-bell" title="Notifications">
-        🔔
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <div class="header-dot"></div>
       </div>
-      <div class="header-icon-btn" id="hdr-btn-profile" title="Account Profile">👤</div>
+      <div class="header-icon-btn" id="hdr-btn-profile" title="Account Profile">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
     </div>
   </header>
 
@@ -54,39 +66,39 @@
   <!-- Main Navigation Tabs -->
   <nav class="main-nav-tabs">
     <div class="nav-tab-btn active" data-tab="gen">
-      <span>✨</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="#a3e635"><path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z"/></svg>
       <span>Gen</span>
     </div>
     <div class="nav-tab-btn" data-tab="workflow">
-      <span>🔗</span>
-      <span>Workflow</span>
-    </div>
-    <div class="nav-tab-btn" data-tab="bulk">
-      <span>⬇️</span>
-      <span>Bulk DL</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M6 9v3a3 3 0 0 0 3 3h6"/></svg>
+      <span>Workflows</span>
     </div>
     <div class="nav-tab-btn" data-tab="prompts">
-      <span>📄</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
       <span>Prompts</span>
     </div>
     <div class="nav-tab-btn" data-tab="tasks">
-      <span>📋</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       <span>Tasks</span>
     </div>
+    <div class="nav-tab-btn" data-tab="bulk">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>Bulk DL</span>
+    </div>
     <div class="nav-tab-btn" data-tab="gallery">
-      <span>🖼️</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       <span>Gallery</span>
     </div>
     <div class="nav-tab-btn" data-tab="angles">
-      <span>🎥</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
       <span>Angles</span>
     </div>
     <div class="nav-tab-btn" data-tab="effects">
-      <span>📸</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
       <span>FX</span>
     </div>
     <div class="nav-tab-btn" data-tab="diagnostics">
-      <span>🧪</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       <span>Status</span>
     </div>
   </nav>
@@ -100,7 +112,7 @@
       <!-- Prompt Header Row -->
       <div class="prompt-header-row">
         <div class="prompt-count-badge">
-          <span>📑</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           <span>Prompt</span>
           <span id="prompt-count-label" style="color:#cbd5e1;">0 prompt(s)</span>
         </div>
@@ -116,18 +128,26 @@
         
         <div class="prompt-toolbar">
           <div class="prompt-chips-left">
-            <div class="chip-icon-only" id="chip-btn-snip" title="Snip Reference Image from Web">⛶</div>
-            <div class="chip-btn" id="chip-btn-assistant">
-              <span>✏️</span>
+            <button type="button" class="chip-icon-only" id="chip-btn-snip" title="Snip Reference Image from Web">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+            </button>
+            <button type="button" class="chip-btn" id="chip-btn-assistant">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 2 4 4-14 14H4v-4L18 2zM15 5l4 4"/></svg>
               <span>Prompt Assistant</span>
-            </div>
-            <div class="chip-btn" id="chip-btn-import">
-              <span>➕</span>
+            </button>
+            <button type="button" class="chip-btn" id="chip-btn-import">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
               <span>Import .txt</span>
               <input type="file" id="gen-file-import" accept=".txt,.csv" style="display:none;" />
-            </div>
+            </button>
           </div>
-          <div class="chip-icon-only" id="chip-btn-save-tpl" title="Save as Prompt Template">🔖</div>
+          <button type="button" class="chip-icon-only" id="chip-btn-save-tpl" title="Save as Prompt Template">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          </button>
+        </div>
+        <div class="prompt-hint-row" style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#ccff00;margin-top:6px;padding-left:4px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Separate each prompt with a blank line</span>
         </div>
       </div>
 
@@ -141,12 +161,12 @@
           <div class="provider-pill" data-provider="chatgpt">
             <span>🤖</span>
             <span>ChatGPT</span>
-            <span class="crown-badge">👑</span>
+            <svg class="crown-icon" width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5ZM19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z"/></svg>
           </div>
           <div class="provider-pill" data-provider="grok">
             <span>⚡</span>
             <span>Grok</span>
-            <span class="crown-badge">👑</span>
+            <svg class="crown-icon" width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5ZM19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z"/></svg>
           </div>
         </div>
         <div class="provider-toggle-switch active" id="provider-auto-toggle" title="Auto Multi-AI Mode"></div>
@@ -234,12 +254,12 @@
 
         <div class="dropzone-box" id="dropzone-upload-img">
           <div class="dropzone-text" id="dropzone-content-img">
-            <span>📁</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             <span id="dropzone-label-img">Upload image / Drag here or Snip from Web</span>
             <input type="file" id="dropzone-file-input-img" accept="image/*" style="display:none;" />
           </div>
           <div style="display:flex;gap:6px;align-items:center;">
-            <div class="dropzone-snip-btn" id="dropzone-snip-btn-img" title="Snip from Web Page">✂️</div>
+            <div class="dropzone-snip-btn" id="dropzone-snip-btn-vid" title="Snip from Web Page"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg></div>
           </div>
         </div>
 
@@ -248,7 +268,7 @@
           <div class="toggle-switch-wrapper">
             <div class="provider-toggle-switch active" id="toggle-watermark-img"></div>
             <span>No watermark</span>
-            <span class="crown-badge">👑</span>
+            <svg class="crown-icon" width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5ZM19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z"/></svg>
           </div>
 
           <select class="select-control" id="select-resolution-img" style="padding:4px 8px;font-size:11px;">
@@ -362,12 +382,12 @@
         <!-- Main Video Reference Dropzone -->
         <div class="dropzone-box" id="dropzone-upload-vid">
           <div class="dropzone-text" id="dropzone-content-vid">
-            <span>📁</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             <span id="dropzone-label-vid">Upload reference / Drag here or Snip from Web</span>
             <input type="file" id="dropzone-file-input-vid" accept="image/*" style="display:none;" />
           </div>
           <div style="display:flex;gap:6px;align-items:center;">
-            <div class="dropzone-snip-btn" id="dropzone-snip-btn-vid" title="Snip from Web Page">✂️</div>
+            <div class="dropzone-snip-btn" id="dropzone-snip-btn-vid" title="Snip from Web Page"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg></div>
           </div>
         </div>
 
@@ -379,8 +399,7 @@
               <span>⛶ START</span>
             </div>
             <div class="keyframe-dashed-slot" id="slot-start-frame">
-              <span style="font-size:14px;">➕</span>
-              <span>Add</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add</span>
               <input type="file" id="input-start-frame" accept="image/*" style="display:none;" />
             </div>
           </div>
@@ -391,8 +410,7 @@
               <span>⛶ END</span>
             </div>
             <div class="keyframe-dashed-slot" id="slot-end-frame">
-              <span style="font-size:14px;">➕</span>
-              <span>Add</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add</span>
               <input type="file" id="input-end-frame" accept="image/*" style="display:none;" />
             </div>
           </div>
@@ -403,7 +421,7 @@
           <div class="toggle-switch-wrapper">
             <div class="provider-toggle-switch active" id="toggle-watermark-vid"></div>
             <span>No watermark</span>
-            <span class="crown-badge">👑</span>
+            <svg class="crown-icon" width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5ZM19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z"/></svg>
           </div>
 
           <select class="select-control" id="select-resolution-vid" style="padding:4px 8px;font-size:11px;">
@@ -425,7 +443,7 @@
         </div>
 
         <div class="folder-input-pill">
-          <span>📁</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <input type="text" id="input-subfolder" value="ziggyflow-01" placeholder="Folder name..." />
           <span style="cursor:pointer;font-size:13px;" id="btn-folder-settings" title="Folder Settings">⚙️</span>
         </div>
@@ -561,7 +579,7 @@
           <span>Templates</span>
         </button>
         <button class="wf-subtab-btn" data-subtab="workflows" id="wf-subtab-workflows">
-          <span>📁</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <span>My Workflows</span>
           <span class="wf-subtab-badge" id="wf-saved-count">3</span>
         </button>
