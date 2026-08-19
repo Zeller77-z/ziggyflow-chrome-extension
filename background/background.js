@@ -73,6 +73,7 @@ class BackgroundController {
           this.taskQueue.push(...payload.tasks);
           this.stats.total += payload.tasks.length;
           this.updateBadge();
+          this.broadcast({ action: "BATCH_ENQUEUED", tasks: payload.tasks });
           this.log(`[QUEUE] Enqueued ${payload.tasks.length} task(s). Total in queue: ${this.taskQueue.length}`);
           if (!this.isRunning && !this.isPaused) {
             this.startQueueProcessing();
@@ -513,12 +514,12 @@ class BackgroundController {
       await self.downloadManager.triggerDownload({
         url: data.mediaUrl,
         prompt: data.prompt,
-        project: data.project || "tobyflow-01",
+        project: data.project || "ziggyflow-01",
         provider: data.provider,
         resolution: data.resolution || "4K",
         type: data.type || "image"
       });
-      this.log(`[DOWNLOAD] Auto-downloaded asset to subfolder: ${data.project || "tobyflow-01"}`);
+      this.log(`[DOWNLOAD] Auto-downloaded asset to subfolder: ${data.project || "ziggyflow-01"}`);
     }
 
     if (self.telegramBot && self.telegramBot.enabled) {
@@ -527,6 +528,7 @@ class BackgroundController {
     }
 
     this.broadcast({ action: "TASK_COMPLETED", data });
+    this.broadcast({ action: "MEDIA_GENERATED_NOTIFICATION", payload: data });
   }
 
   async saveReferenceImage(imageObj) {

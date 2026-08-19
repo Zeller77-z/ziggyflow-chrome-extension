@@ -104,7 +104,7 @@ window.DiagnosticsManager = {
       payload: {
         provider: "Google Flow (Veo 3.1 Quality)",
         prompt: "Cyberpunk neon city 4K drone shot",
-        project: "tobyflow-01",
+        project: "ziggyflow-01",
         type: "image"
       }
     }, () => {
@@ -116,7 +116,7 @@ window.DiagnosticsManager = {
     const logEl = document.getElementById("diag-test-log");
     if (!logEl) return;
 
-    logEl.innerHTML = `<div style="color:#38bdf8;">[INIT] Running diagnostics across all TobyFlow subsystems...</div>`;
+    logEl.innerHTML = `<div style="color:#38bdf8;">[INIT] Running diagnostics across all ZIG Flow Pro subsystems...</div>`;
 
     const tests = [
       { name: "Visual Workflow Node Canvas & Wires", fn: () => window.WorkflowBuilder && window.WorkflowBuilder.nodes.length >= 0 },

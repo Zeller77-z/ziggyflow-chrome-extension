@@ -1,7 +1,7 @@
 /**
- * ZiggyFlow Floating In-Page Overlay & Live Generation Mini-Window (HUD)
+ * ZIG Flow Mini Floating In-Page Overlay & Live Generation HUD
  * Ultra-compact, draggable, professional mini-window with per-item remove/retry,
- * live timers, 2x2 grid preview, quick regeneration, and 4K downloads.
+ * live timers, continuous multi-image tracking, batch pipeline progress, and 4K downloads.
  */
 
 (() => {
@@ -10,14 +10,20 @@
 
   let currentBatchTasks = [];
   let galleryHistoryTasks = [];
+  let processedMediaUrls = new Set();
+  let processedTileIds = new Set();
   let batchStartTime = null;
   let batchTimerInterval = null;
+  let canvasObserverInterval = null;
   let isSoundEnabled = true;
 
   // Load previous gallery tasks from storage and populate initial gallery
   chrome.storage.local.get(['recentGeneratedTasks'], (res) => {
     if (res?.recentGeneratedTasks && Array.isArray(res.recentGeneratedTasks) && res.recentGeneratedTasks.length > 0) {
-      galleryHistoryTasks = res.recentGeneratedTasks.slice(-30);
+      galleryHistoryTasks = res.recentGeneratedTasks.slice(-50);
+      galleryHistoryTasks.forEach(t => {
+        if (t.mediaUrl) processedMediaUrls.add(t.mediaUrl);
+      });
       renderExpandedGallery();
     }
   });
@@ -44,7 +50,7 @@
         pointer-events: none;
       `;
 
-      // Restore saved position or default to bottom-right (matching TobyFlow in Screenshot 2)
+      // Restore saved position or default to bottom-right
       let savedPos = { bottom: 20, right: 380 };
       try {
         const stored = localStorage.getItem("zf_mini_window_pos");
@@ -161,17 +167,17 @@
           backdrop-filter: blur(16px);
         ">
           <span style="font-size:12px;color:#ccff00;">✦</span>
-          <span>TobyFlow</span>
+          <span>ZIG Flow Mini</span>
           <span id="zf-pill-status" style="background:#ccff00;color:#121316;padding:1px 6px;border-radius:6px;font-size:9.5px;font-weight:800;">Open</span>
         </div>
 
-        <!-- Exact TobyFlow Mini HUD Window (Matching Screenshot 1 & 2) -->
+        <!-- ZIG Flow Mini HUD Window -->
         <div id="zf-mini-window" data-ziggy-internal="true" style="
           pointer-events: auto;
           display: flex;
           position: fixed;
           ${posStyle}
-          width: 320px;
+          width: 325px;
           max-width: calc(100vw - 32px);
           background: linear-gradient(180deg, rgba(18,22,30,0.88), rgba(4,7,12,0.95)), linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
           border: 1px solid rgba(239,246,255,0.22);
@@ -184,7 +190,7 @@
           z-index: 2147483645;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         ">
-          <!-- 1. Header Bar (Matching Image 1) -->
+          <!-- 1. Header Bar -->
           <div id="zf-drag-header" style="
             background: rgba(255,255,255,0.03);
             padding: 8px 11px;
@@ -209,7 +215,7 @@
               ">
                 <span style="color:#ccff00;font-size:11px;font-weight:900;">✦</span>
               </div>
-              <span style="font-weight:800;font-size:12.5px;color:#ffffff;letter-spacing:0.2px;">TobyFlow</span>
+              <span style="font-weight:800;font-size:12.5px;color:#ffffff;letter-spacing:0.2px;">ZIG Flow Mini</span>
               <button id="zf-btn-expand-gallery" class="zf-icon-btn" style="padding: 1px 5px; font-size: 10px;" title="Expand Results Grid">⤢</button>
               <button id="zf-btn-detach-window" class="zf-icon-btn" style="padding: 1px 5px; font-size: 10px;" title="Detach Live Window / Popup">↗</button>
             </div>
@@ -226,7 +232,7 @@
             <div id="zf-progress-fill" style="height: 100%; width: 100%; background: linear-gradient(90deg, #a3e635, #ccff00, #e2ff66); transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease-out;"></div>
           </div>
 
-          <!-- 3. Status Bar (Matching Image 1) -->
+          <!-- 3. Status Bar -->
           <div style="
             background: rgba(0,0,0,0.25);
             padding: 6px 10px;
@@ -240,14 +246,14 @@
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#94a3b8;font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:700;">WEB</span>
-              <span id="zf-badge-status-pill" style="background:#064e3b;color:#34d399;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;">Done</span>
+              <span id="zf-badge-status-pill" style="background:#064e3b;color:#34d399;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;">Ready</span>
               <span id="zf-live-render-time" style="font-size:11px;color:#94a3b8;font-family:monospace;">00:00</span>
               <span id="zf-live-render-pct" style="font-size:11px;font-weight:700;color:#e2e8f0;">100%</span>
               <button id="zf-btn-collapse-list" style="background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:11px;padding:0 2px;">^</button>
             </div>
           </div>
 
-          <!-- 4. Live Generation Pipeline Status Line (Matching TobyFlow) -->
+          <!-- 4. Live Generation Pipeline Status Line -->
           <div id="zf-pipeline-row" style="
             padding: 4px 10px;
             font-size: 10.5px;
@@ -274,9 +280,9 @@
             <span id="zf-stat-failed" style="color:#f87171;">✕ 0 fail</span>
           </div>
 
-          <!-- 5. Live Task Items List (Matching Image 1) -->
+          <!-- 5. Live Task Items List -->
           <div id="zf-mini-task-list" style="
-            max-height: 150px;
+            max-height: 180px;
             overflow-y: auto;
             padding: 6px 8px;
             display: flex;
@@ -284,18 +290,18 @@
             gap: 5px;
             background: rgba(10,12,16,0.85);
           ">
-            <div style="color:#64748b;font-size:11px;text-align:center;padding:10px 0;">✨ Ready. Waiting for generation...</div>
+            <div style="color:#64748b;font-size:11px;text-align:center;padding:10px 0;">✨ Ready. Enter prompt and click Generate.</div>
           </div>
         </div>
 
-        <!-- 6. EXPANDED STUDIO GALLERY OVERLAY (Matching Screenshot 2) -->
+        <!-- 6. EXPANDED STUDIO GALLERY OVERLAY -->
         <div id="zf-expanded-gallery-overlay" style="
           pointer-events: auto;
           display: none;
           position: fixed;
           top: 24px;
           left: 24px;
-          width: 420px;
+          width: 440px;
           max-width: calc(100vw - 48px);
           max-height: calc(100vh - 48px);
           background: linear-gradient(180deg, rgba(18,22,30,0.95), rgba(4,7,12,0.98));
@@ -330,7 +336,7 @@
               ">
                 <span style="color:#ccff00;font-size:11px;font-weight:900;">✦</span>
               </div>
-              <span style="font-weight:800;font-size:13px;color:#ffffff;">TobyFlow</span>
+              <span style="font-weight:800;font-size:13px;color:#ffffff;">ZIG Flow Mini</span>
               <span style="color:#94a3af;font-size:11.5px;">Results</span>
               <span id="zf-gallery-total-count" style="color:#94a3af;font-size:11.5px;">0</span>
             </div>
@@ -369,7 +375,7 @@
           </div>
         </div>
 
-        <!-- 7. FULLSCREEN 4K LIGHTBOX MEDIA VIEWER (Matching TobyFlow _openViewOverlay) -->
+        <!-- 7. FULLSCREEN 4K LIGHTBOX MEDIA VIEWER -->
         <div id="zf-lightbox-overlay" style="
           position: fixed;
           inset: 0;
@@ -481,9 +487,10 @@
       setupDraggableWindow(host);
       setupLightboxEvents(host);
       attachManualPageListener();
+      startContinuousDOMObserver();
 
     } catch (err) {
-      console.warn("ZiggyFlow overlay init note:", err);
+      console.warn("ZIG Flow Mini overlay init note:", err);
     }
   }
 
@@ -502,9 +509,7 @@
     let initialTop = 0;
 
     dragHeader.addEventListener("mousedown", (e) => {
-      // Don't drag if clicking buttons on header
       if (e.target.closest("button") || e.target.closest(".zf-icon-btn")) return;
-
       isDragging = true;
       dragHeader.style.cursor = "grabbing";
       const rect = mini.getBoundingClientRect();
@@ -512,7 +517,6 @@
       initialTop = rect.top;
       startX = e.clientX;
       startY = e.clientY;
-
       e.preventDefault();
     });
 
@@ -535,7 +539,6 @@
       isDragging = false;
       dragHeader.style.cursor = "grab";
 
-      // Save position to localStorage
       try {
         const rect = mini.getBoundingClientRect();
         localStorage.setItem("zf_mini_window_pos", JSON.stringify({
@@ -567,7 +570,7 @@
       pill.style.display = "none";
     });
 
-    // Close (✕) -> completely hides window & shows pill
+    // Close (✕) -> hides window & shows pill
     btnClose?.addEventListener("click", () => {
       mini.style.display = "none";
       pill.style.display = "flex";
@@ -635,6 +638,9 @@
 
     // Background runtime messages
     chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.action === "BATCH_ENQUEUED" && Array.isArray(msg.tasks)) {
+        onBatchEnqueued(msg.tasks);
+      }
       if (msg.action === "TASK_STARTED" && msg.task) {
         onTaskStarted(msg.task);
       }
@@ -644,40 +650,43 @@
       if (msg.action === "MEDIA_GENERATED_NOTIFICATION" && msg.payload) {
         onTaskCompleted(msg.payload);
       }
+      if (msg.action === "TASK_COMPLETED" && msg.data) {
+        onTaskCompleted(msg.data);
+      }
       if (msg.action === "QUEUE_FINISHED") {
         onQueueFinished();
       }
     });
   }
 
-  let initialMediaSnapshot = new Set();
-
   // =============================================
-  // 4. LIVE PROGRESS & REAL-TIME STOPWATCH TIMER
+  // 4. LIVE PROGRESS & CONTINUOUS MULTI-IMAGE PIPELINE
   // =============================================
-  function onTaskStarted(task) {
+  function onBatchEnqueued(tasks) {
+    if (!Array.isArray(tasks) || tasks.length === 0) return;
     const mini = document.getElementById("zf-mini-window");
     const pill = document.getElementById("zf-pill-btn");
     if (mini) mini.style.display = "flex";
     if (pill) pill.style.display = "none";
 
-    // Snapshot existing media so any newly added image/video is instantly identified
-    initialMediaSnapshot = new Set(
-      Array.from(document.querySelectorAll("img, video")).map(el => el.src).filter(Boolean)
-    );
+    batchStartTime = Date.now();
+    currentBatchTasks = tasks.map(t => ({
+      ...t,
+      status: "waiting",
+      startTime: null,
+      mediaUrl: null
+    }));
 
-    // If all previous tasks were already done or failed, start fresh batch
-    const hasActiveTasks = currentBatchTasks.some(t => t.status === "generating" || t.status === "waiting");
-    if (!hasActiveTasks) {
-      currentBatchTasks = [];
-      batchStartTime = Date.now();
-    }
+    startBatchTimer();
+    updateMiniSummary();
+    renderTaskList();
+  }
 
-    const modeBadge = document.getElementById("zf-mini-mode-badge");
-    if (modeBadge) {
-      const isManual = (task.submitMode || "auto") === "manual";
-      modeBadge.style.display = isManual ? "inline-block" : "none";
-    }
+  function onTaskStarted(task) {
+    const mini = document.getElementById("zf-mini-window");
+    const pill = document.getElementById("zf-pill-btn");
+    if (mini) mini.style.display = "flex";
+    if (pill) pill.style.display = "none";
 
     const statusPill = document.getElementById("zf-badge-status-pill");
     if (statusPill) {
@@ -689,22 +698,27 @@
     const livePct = document.getElementById("zf-live-render-pct");
     if (livePct) livePct.innerText = "1%";
 
-    // Ensure unique task ID
-    task.id = task.id || "gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
-    let existing = currentBatchTasks.find(t => t.id === task.id);
-    if (!existing) {
+    if (!batchStartTime) {
+      batchStartTime = Date.now();
+    }
+
+    task.id = task.id || ("gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6));
+
+    // Match or insert task in batch
+    let existing = currentBatchTasks.find(t => t.id === task.id || (t.prompt === task.prompt && t.status === "waiting"));
+    if (existing) {
+      existing.status = "generating";
+      existing.startTime = Date.now();
+      existing.id = task.id;
+    } else {
       task.status = "generating";
       task.startTime = Date.now();
       currentBatchTasks.push(task);
-    } else {
-      existing.status = "generating";
-      existing.startTime = Date.now();
     }
 
     startBatchTimer();
     updateMiniSummary();
     renderTaskList();
-    startCanvasObserver();
   }
 
   function onLiveRenderProgress(progressStr) {
@@ -720,39 +734,75 @@
   }
 
   function onTaskCompleted(data) {
-    const task = (data.id ? currentBatchTasks.find(t => t.id === data.id) : null) || 
-                 currentBatchTasks.find(t => t.status === "generating") || 
-                 currentBatchTasks.find(t => t.prompt === data.prompt && t.status !== "done") ||
-                 currentBatchTasks[currentBatchTasks.length - 1];
-    
+    if (!data || !data.mediaUrl) return;
+
+    // Avoid duplicate processing of exact same media
+    const isAlreadyKnown = processedMediaUrls.has(data.mediaUrl);
+    processedMediaUrls.add(data.mediaUrl);
+
+    // Find the target task:
+    let task = null;
+    if (data.id) {
+      task = currentBatchTasks.find(t => t.id === data.id);
+    }
+    if (!task && data.prompt) {
+      task = currentBatchTasks.find(t => t.prompt === data.prompt && t.status !== "done");
+    }
+    if (!task) {
+      task = currentBatchTasks.find(t => t.status === "generating");
+    }
+    if (!task) {
+      task = currentBatchTasks.find(t => t.status === "waiting");
+    }
+
     if (task) {
       task.status = "done";
       task.mediaUrl = data.mediaUrl;
-      task.durationSec = Math.max(1, Math.floor((Date.now() - (task.startTime || (Date.now() - 10000))) / 1000));
-      
-      if (!galleryHistoryTasks.some(g => g.mediaUrl === data.mediaUrl)) {
-        galleryHistoryTasks.unshift(task);
-        saveTasksState();
+      task.type = data.type || task.type || "image";
+      task.durationSec = Math.max(1, Math.floor((Date.now() - (task.startTime || batchStartTime || (Date.now() - 10000))) / 1000));
+    } else {
+      // Create new completed entry if not pre-enqueued (e.g. manual on-page click)
+      task = {
+        id: data.id || ("gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6)),
+        prompt: data.prompt || "Google Flow Generation",
+        provider: data.provider || "Google Flow",
+        status: "done",
+        mediaUrl: data.mediaUrl,
+        type: data.type || "image",
+        durationSec: 10,
+        createdAt: Date.now()
+      };
+      currentBatchTasks.push(task);
+    }
+
+    // Save to gallery history
+    if (!galleryHistoryTasks.some(g => g.mediaUrl === data.mediaUrl)) {
+      galleryHistoryTasks.unshift(task);
+      saveTasksState();
+    }
+
+    const anyStillGenerating = currentBatchTasks.some(t => t.status === "generating" || t.status === "waiting");
+    const statusPill = document.getElementById("zf-badge-status-pill");
+    const livePct = document.getElementById("zf-live-render-pct");
+
+    if (!anyStillGenerating) {
+      if (statusPill) {
+        statusPill.innerText = "Done";
+        statusPill.style.background = "#064e3b";
+        statusPill.style.color = "#34d399";
+      }
+      if (livePct) livePct.innerText = "100%";
+      stopBatchTimer();
+    } else {
+      if (statusPill) {
+        statusPill.innerText = "Generating";
+        statusPill.style.background = "#1e3a8a";
+        statusPill.style.color = "#60a5fa";
       }
     }
 
-    const statusPill = document.getElementById("zf-badge-status-pill");
-    const livePct = document.getElementById("zf-live-render-pct");
-    if (statusPill) {
-      statusPill.innerText = "Done";
-      statusPill.style.background = "#064e3b";
-      statusPill.style.color = "#34d399";
-    }
-    if (livePct) livePct.innerText = "100%";
-
-    if (isSoundEnabled) {
+    if (isSoundEnabled && !isAlreadyKnown) {
       playCompletionTone();
-    }
-
-    // Stop timer if all tasks are done
-    const anyStillGenerating = currentBatchTasks.some(t => t.status === "generating");
-    if (!anyStillGenerating) {
-      stopBatchTimer();
     }
 
     updateMiniSummary();
@@ -760,18 +810,11 @@
     renderExpandedGallery();
   }
 
-  // Actively inspects Google Flow's DOM canvas for real percentage and rendered media
-  let canvasObserverInterval = null;
-  function startCanvasObserver() {
+  // Continuous background DOM Observer that detects ALL rendered images & videos across every tile
+  function startContinuousDOMObserver() {
     if (canvasObserverInterval) clearInterval(canvasObserverInterval);
     canvasObserverInterval = setInterval(() => {
-      const activeGenTask = currentBatchTasks.find(t => t.status === "generating");
-      if (!activeGenTask) {
-        clearInterval(canvasObserverInterval);
-        return;
-      }
-
-      // 1. Scan for real percentage on Google Flow canvas tiles (e.g. 70%)
+      // 1. Scan for percentage progress
       const pctNodes = Array.from(document.querySelectorAll('div, span, p, [role="progressbar"], [aria-busy="true"]'))
         .filter(el => !el.closest("#ziggyflow-floating-hud") && el.offsetParent !== null);
       for (const node of pctNodes) {
@@ -783,53 +826,76 @@
         }
       }
 
-      const elapsed = Date.now() - (activeGenTask.startTime || Date.now());
+      // Check if we have active/generating tasks to match
+      const hasActiveTasks = currentBatchTasks.some(t => t.status === "generating" || t.status === "waiting");
+      if (!hasActiveTasks) return;
 
-      // 2. Scan for newly created video elements
-      if (elapsed > 6000) {
-        for (const video of document.querySelectorAll("video")) {
-          const src = video.currentSrc || video.src;
-          if (src && !video.closest("#ziggyflow-floating-hud") && !initialMediaSnapshot.has(src)) {
-            if (video.duration > 0 || video.readyState >= 2 || src.startsWith("blob:") || src.includes(".mp4")) {
-              console.log("ZiggyFlow: Live observer captured newly rendered video:", src);
-              onTaskCompleted({
-                provider: "Google Flow",
-                prompt: activeGenTask.prompt,
-                mediaUrl: src,
-                type: "video"
-              });
-              clearInterval(canvasObserverInterval);
-              return;
-            }
+      // 2. Scan tiles with status 'success'
+      const allTileEls = Array.from(document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [role="gridcell"], div[class*="tile"], div[class*="card"]'));
+      for (const tile of allTileEls) {
+        const tileId = tile.getAttribute("data-tile-id") || tile.getAttribute("data-item-id") || tile.getAttribute("data-node-id") || tile.dataset?.tileId;
+        
+        // Scan video
+        const video = tile.querySelector("video");
+        if (video) {
+          const vSrc = video.currentSrc || video.src;
+          if (vSrc && !processedMediaUrls.has(vSrc) && (video.readyState >= 2 || video.duration > 0 || vSrc.startsWith("blob:") || vSrc.includes(".mp4"))) {
+            console.log("ZIG Flow Mini: Observer detected completed video tile:", vSrc);
+            if (tileId) processedTileIds.add(tileId);
+            onTaskCompleted({
+              provider: "Google Flow",
+              mediaUrl: vSrc,
+              type: "video"
+            });
           }
         }
 
-        // 3. Scan for newly created canvas tile images
-        const allImgs = Array.from(document.querySelectorAll("img")).filter(img => {
-          const src = img.currentSrc || img.src;
-          if (!src || img.closest("#ziggyflow-floating-hud") || initialMediaSnapshot.has(src) || src.includes("media.html")) return false;
-          const rect = img.getBoundingClientRect();
-          if (rect.width < 60 || rect.height < 50) return false;
-          const s = src.toLowerCase();
-          if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return false;
-          return img.complete && img.naturalWidth > 60;
-        });
-
-        if (allImgs.length > 0 && !activeGenTask.mediaUrl) {
-          const fresh = allImgs[0];
-          const freshSrc = fresh.currentSrc || fresh.src;
-          console.log("ZiggyFlow: Live observer captured newly rendered image:", freshSrc);
-          onTaskCompleted({
-            provider: "Google Flow",
-            prompt: activeGenTask.prompt,
-            mediaUrl: freshSrc,
-            type: "image"
-          });
-          clearInterval(canvasObserverInterval);
-          return;
+        // Scan image
+        const img = tile.querySelector("img");
+        if (img) {
+          const iSrc = img.currentSrc || img.src;
+          if (iSrc && !processedMediaUrls.has(iSrc) && !iSrc.includes("media.html") && !iSrc.startsWith("data:image/svg") && img.complete && img.naturalWidth > 60) {
+            const isAvatar = iSrc.includes("avatar") || iSrc.includes("profile") || iSrc.includes("icon");
+            if (!isAvatar) {
+              console.log("ZIG Flow Mini: Observer detected completed image tile:", iSrc);
+              if (tileId) processedTileIds.add(tileId);
+              onTaskCompleted({
+                provider: "Google Flow",
+                mediaUrl: iSrc,
+                type: "image"
+              });
+            }
+          }
         }
       }
-    }, 800);
+
+      // 3. Fallback scan for any fresh non-snapshotted media elements on page
+      const freshMedia = Array.from(document.querySelectorAll("video, img")).filter(el => {
+        if (el.closest("#ziggyflow-floating-hud") || el.offsetParent === null) return false;
+        const src = el.currentSrc || el.src;
+        if (!src || processedMediaUrls.has(src) || src.includes("media.html") || src.startsWith("data:image/svg")) return false;
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 70 || rect.height < 50) return false;
+        const s = src.toLowerCase();
+        if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return false;
+        
+        if (el.tagName === "VIDEO") {
+          return el.readyState >= 2 || el.duration > 0 || src.startsWith("blob:") || src.includes(".mp4");
+        }
+        return el.complete && el.naturalWidth > 60;
+      });
+
+      if (freshMedia.length > 0) {
+        const topMedia = freshMedia[0];
+        const mediaSrc = topMedia.currentSrc || topMedia.src;
+        console.log("ZIG Flow Mini: Observer detected fresh non-tile media:", mediaSrc);
+        onTaskCompleted({
+          provider: "Google Flow",
+          mediaUrl: mediaSrc,
+          type: topMedia.tagName === "VIDEO" ? "video" : "image"
+        });
+      }
+    }, 750);
   }
 
   // Listens to manual on-page submission on Google Flow (Enter key or Submit click)
@@ -838,10 +904,10 @@
 
     const handleSubmission = (promptText) => {
       const now = Date.now();
-      if (now - lastSubmitTime < 2500) return; // debounce duplicate events
+      if (now - lastSubmitTime < 2500) return;
       lastSubmitTime = now;
 
-      console.log("ZiggyFlow: On-Page Manual Generation Detected -> Starting live HUD tracking:", promptText);
+      console.log("ZIG Flow Mini: On-Page Manual Generation Detected -> Tracking in HUD:", promptText);
       onTaskStarted({
         id: "manual_" + now,
         prompt: promptText || "Google Flow Generation",
@@ -901,7 +967,7 @@
   }
 
   // =============================================
-  // 3.5 LIGHTBOX MEDIA VIEWER CONTROLLER (TobyFlow Pattern)
+  // 5. LIGHTBOX MEDIA VIEWER CONTROLLER
   // =============================================
   let activeLightboxIndex = 0;
   let activeLightboxItems = [];
@@ -1069,7 +1135,7 @@
         transition: all 0.15s ease;
       `;
 
-      // 1. Thumbnail Image or Placeholder (40px square)
+      // 1. Thumbnail Image or Spinner (40px square)
       const thumb = document.createElement("div");
       thumb.className = "zf-ft-thumb";
       thumb.style.cssText = `
@@ -1213,7 +1279,7 @@
   }
 
   // =============================================
-  // 5. EXPANDED STUDIO GALLERY RENDERING (⤢)
+  // 6. EXPANDED STUDIO GALLERY RENDERING (⤢)
   // =============================================
   function renderExpandedGallery() {
     const container = document.getElementById("zf-gallery-cards-container");
@@ -1232,7 +1298,7 @@
     if (galCount) galCount.innerText = doneTasks.length;
 
     if (doneTasks.length === 0) {
-      container.innerHTML = `<div style="color:#64748b;font-size:12px;text-align:center;padding:24px 0;">No completed generation results yet. Start generating in TobyFlow!</div>`;
+      container.innerHTML = `<div style="color:#64748b;font-size:12px;text-align:center;padding:24px 0;">No completed generation results yet. Enter prompts and click Generate!</div>`;
       return;
     }
 
@@ -1259,8 +1325,8 @@
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
           <span class="zf-meta-tag">${t.type === "video" ? "Video" : "Image"}</span>
           <span class="zf-meta-tag" style="color:#a3e635;">${t.model || "Nano Banana Pro"}</span>
-          <span class="zf-meta-tag" style="color:#38bdf8;">${t.aspectRatio || "4:3"}</span>
-          <span class="zf-meta-tag">x${t.quantity || 2}</span>
+          <span class="zf-meta-tag" style="color:#38bdf8;">${t.aspectRatio || "16:9"}</span>
+          <span class="zf-meta-tag">x${t.quantity || 1}</span>
         </div>
 
         <div style="background:#0f1013;border:1px solid #202227;border-radius:5px;padding:6px 8px;font-size:11px;color:#cbd5e1;line-height:1.35;max-height:65px;overflow-y:auto;white-space:pre-wrap;">
@@ -1322,7 +1388,7 @@
   }
 
   function saveTasksState() {
-    chrome.storage.local.set({ recentGeneratedTasks: galleryHistoryTasks.slice(-30) });
+    chrome.storage.local.set({ recentGeneratedTasks: galleryHistoryTasks.slice(-50) });
   }
 
   function startBatchTimer() {
@@ -1383,5 +1449,6 @@
     }
   }, 2500);
 })();
+
 
 

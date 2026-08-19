@@ -1122,11 +1122,14 @@
     }
   }
 
-  /** TobyFlow-grade generation tracking with pre-submit tile snapshot diffing */
+  /** ZIG Flow generation tracking with multi-tile detection & snapshot diffing */
   async function trackGenerationProgress(maxWaitMs = 240000, preTileIds = new Set(), preMediaSrcs = new Set(), task = {}) {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
-      const minGenerationWaitMs = 4500; // Never return before 4.5s to prevent grabbing old DOM elements
+      const minGenerationWaitMs = 3500;
+      const expectedQuantity = Math.max(1, Number(task.quantity) || 1);
+      const collectedResults = [];
+      const discoveredMediaUrls = new Set();
       let isResolved = false;
       let lastReportedProgress = "";
 
@@ -1155,35 +1158,62 @@
           chrome.runtime.sendMessage({ action: "LIVE_RENDER_PROGRESS", progress: liveProgress }).catch(() => {});
         }
 
-        // 2. Strict TobyFlow Diffing: Scan for verified NEW tile elements
+        // 2. Strict Diffing: Scan for verified NEW or COMPLETED tile elements
         if (elapsed >= minGenerationWaitMs) {
-          const allTiles = Array.from(document.querySelectorAll('[data-tile-id]'));
-          const newTiles = allTiles.filter(tile => {
-            const tileId = tile.getAttribute("data-tile-id") || tile.dataset?.tileId;
-            return tileId && !preTileIds.has(tileId);
-          });
+          const allTiles = Array.from(document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [role="gridcell"], div[class*="tile"], div[class*="card"]'));
+          
+          for (const tile of allTiles) {
+            const tileId = tile.getAttribute("data-tile-id") || tile.getAttribute("data-item-id") || tile.getAttribute("data-node-id") || tile.dataset?.tileId;
+            const status = detectTileStatus(tile);
 
-          for (const newTile of newTiles) {
-            const status = detectTileStatus(newTile);
             if (status === "success") {
-              const video = newTile.querySelector("video");
-              const img = newTile.querySelector("img");
+              const video = tile.querySelector("video");
+              const img = tile.querySelector("img");
               const media = video || img;
               const mediaUrl = media ? (media.currentSrc || media.src) : null;
 
-              if (mediaUrl && !preMediaSrcs.has(mediaUrl) && !mediaUrl.includes("media.html")) {
-                isResolved = true;
-                clearInterval(timer);
+              if (mediaUrl && !preMediaSrcs.has(mediaUrl) && !discoveredMediaUrls.has(mediaUrl) && !mediaUrl.includes("media.html") && !mediaUrl.startsWith("data:image/svg")) {
+                discoveredMediaUrls.add(mediaUrl);
                 const res = {
                   url: mediaUrl,
                   type: video ? "video" : "image",
-                  tileId: newTile.getAttribute("data-tile-id") || newTile.dataset?.tileId
+                  tileId: tileId || ("tile_" + Date.now())
                 };
-                console.log("ZiggyFlow: Captured verified NEW tile media:", res);
-                resolve(res);
-                return;
+
+                collectedResults.push(res);
+                console.log(`ZIG Flow: Captured completed media [${collectedResults.length}/${expectedQuantity}]:`, res);
+
+                // Broadcast immediate media ready for this tile
+                const itemPayload = {
+                  id: task.id ? `${task.id}_${collectedResults.length}` : null,
+                  taskId: task.id,
+                  provider: "Google Flow",
+                  prompt: task.prompt,
+                  mediaUrl: res.url,
+                  type: res.type,
+                  duration: task.duration,
+                  aspectRatio: task.aspectRatio,
+                  project: task.project
+                };
+
+                try {
+                  window.dispatchEvent(new CustomEvent("ZF_MEDIA_READY", { detail: itemPayload }));
+                  if (typeof window.__zf_onTaskCompleted === "function") window.__zf_onTaskCompleted(itemPayload);
+                } catch(e) {}
+
+                chrome.runtime.sendMessage({
+                  action: "MEDIA_GENERATED_NOTIFICATION",
+                  payload: itemPayload
+                }).catch(() => {});
+
+                if (collectedResults.length >= expectedQuantity) {
+                  isResolved = true;
+                  clearInterval(timer);
+                  resolve(collectedResults[0]);
+                  return;
+                }
               }
-            } else if (status === "failed" && elapsed > 15000) {
+            } else if (status === "failed" && elapsed > 15000 && collectedResults.length === 0) {
               isResolved = true;
               clearInterval(timer);
               reject(new Error("Generation failed on Google Flow tile (error/warning detected)."));
@@ -1191,13 +1221,13 @@
             }
           }
 
-          // 3. Fallback for non-tile-container views (e.g. Gemini / un-tagged DOM)
+          // 3. Fallback for non-tile-container views
           const allFreshMedia = Array.from(document.querySelectorAll('video, img')).filter(el => {
-            if (isExtensionElement(el)) return false;
+            if (isExtensionElement(el) || el.offsetParent === null) return false;
             const src = el.currentSrc || el.src;
-            if (!src || preMediaSrcs.has(src) || src.includes("media.html") || src.startsWith("data:image/svg")) return false;
+            if (!src || preMediaSrcs.has(src) || discoveredMediaUrls.has(src) || src.includes("media.html") || src.startsWith("data:image/svg")) return false;
             const rect = el.getBoundingClientRect();
-            if (rect.width < 80 || rect.height < 60) return false;
+            if (rect.width < 70 || rect.height < 50) return false;
             const s = src.toLowerCase();
             if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return false;
             
@@ -1210,14 +1240,48 @@
           if (allFreshMedia.length > 0) {
             const media = allFreshMedia[0];
             const src = media.currentSrc || media.src;
-            isResolved = true;
-            clearInterval(timer);
+            discoveredMediaUrls.add(src);
             const res = {
               url: src,
               type: media.tagName === "VIDEO" ? "video" : "image"
             };
-            console.log("ZiggyFlow: Captured fresh non-snapshot media:", res);
+
+            collectedResults.push(res);
+            console.log("ZIG Flow: Captured fresh media via fallback:", res);
+
+            const itemPayload = {
+              id: task.id,
+              taskId: task.id,
+              provider: "Google Flow",
+              prompt: task.prompt,
+              mediaUrl: res.url,
+              type: res.type,
+              duration: task.duration,
+              aspectRatio: task.aspectRatio,
+              project: task.project
+            };
+
+            try {
+              window.dispatchEvent(new CustomEvent("ZF_MEDIA_READY", { detail: itemPayload }));
+              if (typeof window.__zf_onTaskCompleted === "function") window.__zf_onTaskCompleted(itemPayload);
+            } catch(e) {}
+
+            chrome.runtime.sendMessage({
+              action: "MEDIA_GENERATED_NOTIFICATION",
+              payload: itemPayload
+            }).catch(() => {});
+
+            isResolved = true;
+            clearInterval(timer);
             resolve(res);
+            return;
+          }
+
+          // If at least 1 image was collected and we waited past threshold, resolve with what we have
+          if (collectedResults.length > 0 && elapsed > 8000) {
+            isResolved = true;
+            clearInterval(timer);
+            resolve(collectedResults[0]);
             return;
           }
         }
@@ -1225,7 +1289,11 @@
         if (elapsed > maxWaitMs) {
           isResolved = true;
           clearInterval(timer);
-          reject(new Error("Generation timed out on Google Flow."));
+          if (collectedResults.length > 0) {
+            resolve(collectedResults[0]);
+          } else {
+            reject(new Error("Generation timed out on Google Flow."));
+          }
         }
       };
 
@@ -1237,9 +1305,8 @@
           return;
         }
         check();
-      }, 1000);
+      }, 800);
 
-      // Initial check after min generation delay
       setTimeout(check, minGenerationWaitMs);
     });
   }

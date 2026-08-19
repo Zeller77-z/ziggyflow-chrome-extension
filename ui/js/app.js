@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (window.SettingsManager) window.SettingsManager.init();
       if (window.DomTemplatesManager) window.DomTemplatesManager.init();
 
-      console.log("TobyFlow Studio UI Initialized.");
+      console.log("ZIG Flow Pro Studio UI Initialized.");
     },
 
     setupNavigation: function() {
@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     setupHeaderActions: function() {
       document.getElementById("hdr-btn-toggle")?.addEventListener("click", () => {
-        window.AutoFlow.showToast("🟢 TobyFlow Extension is Active and monitoring Flow/ChatGPT/Grok tabs.", "info");
+        window.AutoFlow.showToast("🟢 ZIG Flow Pro Extension is Active and monitoring Flow/ChatGPT/Grok tabs.", "info");
       });
 
       document.getElementById("hdr-btn-docs")?.addEventListener("click", () => {
