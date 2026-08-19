@@ -55,7 +55,8 @@ class BackgroundController {
   }
 
   async handleMessage(request, sender, sendResponse) {
-    const { action, payload } = request;
+    const action = request && request.action;
+    const payload = (request && request.payload) || request || {};
 
     switch (action) {
       case "GET_STATE":
@@ -165,23 +166,27 @@ class BackgroundController {
         sendResponse({ ok: true, success: true });
         break;
 
-      case "chromeDownload":
+            case "chromeDownload":
         const dlUrl = payload.url || request.url;
         if (dlUrl) {
           const dlFilename = (payload.filename || request.filename || `zigflow_${Date.now()}.png`).replace(/[<>:"/\\|?*]+/g, "_");
           chrome.downloads.download({
             url: dlUrl,
             filename: dlFilename,
-            saveAs: false
+            saveAs: false,
+            conflictAction: "uniquify"
           }, (downloadId) => {
             if (chrome.runtime.lastError) {
               console.warn("ZIG Flow: Download error:", chrome.runtime.lastError.message);
               sendResponse({ success: false, error: chrome.runtime.lastError.message });
             } else {
+              console.log("ZIG Flow: Download started successfully! ID:", downloadId, "Filename:", dlFilename);
               sendResponse({ success: true, downloadId });
             }
           });
           return true;
+        } else {
+          sendResponse({ success: false, error: "No URL provided" });
         }
         break;
 
@@ -189,16 +194,25 @@ class BackgroundController {
         const b64 = payload.base64 || request.base64;
         if (b64) {
           const mediaKind = payload.mediaType || request.mediaType || "image";
-          const dataUrl = `data:${payload.mime || (mediaKind === "video" ? "video/mp4" : "image/png")};base64,${b64}`;
+          const dataUrl = `data:${payload.mime || request.mime || (mediaKind === "video" ? "video/mp4" : "image/png")};base64,${b64}`;
           const cleanFilename = (payload.filename || request.filename || `zigflow_${Date.now()}.${mediaKind === "video" ? "mp4" : "png"}`).replace(/[<>:"/\\|?*]+/g, "_");
           chrome.downloads.download({
             url: dataUrl,
             filename: cleanFilename,
-            saveAs: false
+            saveAs: false,
+            conflictAction: "uniquify"
           }, (downloadId) => {
-            sendResponse({ success: true, downloadId });
+            if (chrome.runtime.lastError) {
+              console.warn("ZIG Flow: WM Download error:", chrome.runtime.lastError.message);
+              sendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              console.log("ZIG Flow: WM Download started successfully! ID:", downloadId, "Filename:", cleanFilename);
+              sendResponse({ success: true, downloadId });
+            }
           });
           return true;
+        } else {
+          sendResponse({ success: false, error: "No base64 data provided" });
         }
         break;
 

@@ -96,7 +96,7 @@ if(self.__zigflowFTLoaded__){}else{let _getTrackerT2=function(key,params){var t=
     } catch(e) {}
   }
 
-  // 3. Clean Background Data-URL Download (Zero DOM bubbling, Zero tab navigation, Zero Freezing!)
+  // 3. Clean Background Data-URL Download
   if (b64) {
     try {
       var dataUrl = "data:" + mime + ";base64," + b64;
@@ -115,17 +115,21 @@ if(self.__zigflowFTLoaded__){}else{let _getTrackerT2=function(key,params){var t=
 
   // 4. Background direct URL download fallback
   try {
-    chrome.runtime.sendMessage({
-      action: "chromeDownload",
-      url: url,
-      filename: safeFilename
-    }, function() {
-      void chrome.runtime.lastError;
+    var rawRes = await new Promise(function(resolve) {
+      chrome.runtime.sendMessage({
+        action: "chromeDownload",
+        url: url,
+        filename: safeFilename
+      }, function(resp) {
+        resolve(chrome.runtime.lastError ? null : resp);
+      });
     });
+    if (rawRes && rawRes.success) return true;
   } catch(e) {}
 
   return true;
 };
+
 FloatingTracker._downloadResult=async function(item,result,index,wmMode){try{var _wm=wmMode&&typeof wmMode==="object"?wmMode:{mode:wmMode,resolution:null};var wmPick=_wm.mode==="clean"||_wm.mode==="original"?_wm.mode:null;var _mediaKind=result.video?"video":"image";var wmRes=!_wm.resolutionMedia||_wm.resolutionMedia===_mediaKind?_wm.resolution||null:null;if(_wm.resolutionMedia&&_wm.resolutionMedia!==_mediaKind){try{var mixedSettings=self.getDownloadSettings?await self.getDownloadSettings():null;wmRes=mixedSettings?result.video?mixedSettings.videoResolution:mixedSettings.resolution:null}catch(_){wmRes=null}}if(item.genMode==="api"){if(wmRes&&result.tileId&&self.downloadTileMedia){var apiTileOk=await self.downloadTileMedia(result.tileId,item.promptText,item.taskName,result.fileName||result.tileId,result.video?null:wmRes,null,index,result.video?wmRes:null,wmPick);if(apiTileOk)return;console.warn("[FloatingTracker] API tile resolution download failed \u2192 fallback native URL:",wmRes)}var s=await self.getDownloadSettings();var fn=self._buildFilename({template:s.template,project:s.project,prompt:item.promptText||"flow",index,taskName:item.taskName,folder:s.folder,ext:result.video?"mp4":"png"}).replace(/\.(png|mp4)$/i,"");await FloatingTracker._dlUrl(result.url,fn,result.video?"video":"image",wmPick)}else if(result.tileId&&self.downloadTileMedia){await self.downloadTileMedia(result.tileId,item.promptText,item.taskName,result.fileName,result.video?null:wmRes||null,null,index,result.video?wmRes||null:null,wmPick)}else if(result.url){await FloatingTracker._dlUrl(result.url,null,result.video?"video":"image",wmPick)}}catch(_){}};FloatingTracker._downloadItem=async function(item,startIndex,wmMode){var results=this._itemResultsOf(item);var base=startIndex||(item.promptIndex||0)+1;var pick=wmMode;if(!pick){var _isVid=results.length?!!results[0].video:false;pick=await FloatingTracker._wmAsk(results.length,_isVid);if(!pick||pick.mode===null)return}for(var i=0;i<results.length;i++){await this._downloadResult(item,results[i],base+i,pick);if(i<results.length-1)await new Promise(function(r){setTimeout(r,300)})}};FloatingTracker._downloadAll = async function() {
   try {
     var data = this._lastData;
