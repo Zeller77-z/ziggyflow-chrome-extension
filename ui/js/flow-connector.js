@@ -916,6 +916,12 @@ window.FlowConnector = {
     const btn = document.getElementById("btn-generate-main");
     const btnText = document.getElementById("btn-generate-text");
 
+    const activeQtyEl = this.mediaType === "video" 
+      ? document.getElementById("stepper-value-vid") 
+      : document.getElementById("stepper-value-img");
+    const parsedQty = parseInt(activeQtyEl?.innerText || "1", 10);
+    this.quantity = !isNaN(parsedQty) && parsedQty > 0 ? parsedQty : 1;
+
     const prompts = (rawPrompt || "Cinematic scene").split(/\r?\n/).filter(p => p.trim().length > 0);
     const tasks = [];
 
