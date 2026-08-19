@@ -1123,6 +1123,7 @@
   /** ZIG Flow generation tracking — Lightweight, lag-free TobyFlow-grade architecture */
   async function trackGenerationProgress(maxWaitMs = 240000, preTileIds = new Set(), preMediaSrcs = new Set(), task = {}) {
     return new Promise((resolve, reject) => {
+      window.__zf_isTrackingGeneration = true;
       const startTime = Date.now();
       const minGenerationWaitMs = 5000; // 5s minimum wait before accepting completed tiles
       const expectedQuantity = Math.max(1, Number(task.quantity) || 1);
@@ -1134,6 +1135,7 @@
 
       const cleanup = () => {
         isResolved = true;
+        window.__zf_isTrackingGeneration = false;
         if (pollTimer) clearInterval(pollTimer);
       };
 
@@ -2538,18 +2540,19 @@
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   /** Setup TobyFlow-grade on-page manual generation detector.
-   *  Guards against self-triggering from automated executeFlowTask synthetic events. */
+   *  Only triggers on explicit trusted Enter in prompt box or explicit submit button.
+   *  Guards against self-triggering and parallel rogue runs. */
   function setupManualGenerationDetector() {
     let lastSubmitTime = 0;
-    let isTrackingManual = false;
 
     const handleManualSubmit = async (promptText) => {
       const now = Date.now();
-      if (now - lastSubmitTime < 3000 || isTrackingManual) return;
-      // Block if an automated task is currently running (prevents parallel tracking race)
-      if (window.__zf_automated_task_active) return;
+      if (now - lastSubmitTime < 4000) return;
+      if (window.__zf_automated_task_active || window.__zf_isTrackingGeneration) {
+        console.log("ZIG Flow: Manual trigger ignored — generation tracking is already active.");
+        return;
+      }
       lastSubmitTime = now;
-      isTrackingManual = true;
 
       console.log("ZIG Flow: Manual generation detected on page. Taking exclusion snapshot...");
       const preTileIds = getUniqueTileIds();
@@ -2573,42 +2576,20 @@
         await trackGenerationProgress(240000, preTileIds, preMediaSrcs, manualTask);
       } catch (err) {
         console.warn("ZIG Flow: Manual generation tracking notice:", err.message);
-      } finally {
-        isTrackingManual = false;
       }
     };
 
     document.addEventListener("keydown", (e) => {
-      // GUARD: Only process real user keystrokes, not synthetic events from executeFlowTask
+      // GUARD: Only process real user keystrokes, not synthetic events
       if (!e.isTrusted) return;
-      if (window.__zf_automated_task_active) return;
+      if (window.__zf_automated_task_active || window.__zf_isTrackingGeneration) return;
       if (e.key === "Enter" && !e.shiftKey) {
         const target = e.target;
-        if (target && (target.tagName === "TEXTAREA" || target.getAttribute("role") === "textbox" || target.tagName === "INPUT")) {
+        if (target && (target.tagName === "TEXTAREA" || target.getAttribute("role") === "textbox" || target.getAttribute("data-slate-editor") === "true" || target.tagName === "INPUT")) {
+          if (target.closest("#ziggyflow-floating-hud")) return;
           const val = (target.value || target.textContent || "").trim();
-          if (val.length > 0 && !target.closest("#ziggyflow-floating-hud")) {
+          if (val.length > 0) {
             handleManualSubmit(val);
-          }
-        }
-      }
-    }, true);
-
-    document.addEventListener("click", (e) => {
-      // GUARD: Only process real user clicks, not synthetic events from executeFlowTask
-      if (!e.isTrusted) return;
-      if (window.__zf_automated_task_active) return;
-      const btn = e.target.closest('button, div[role="button"], a[role="button"]');
-      if (btn && !btn.closest("#ziggyflow-floating-hud")) {
-        const rect = btn.getBoundingClientRect();
-        if (rect.top > window.innerHeight * 0.35) {
-          const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
-          const hasSvg = !!btn.querySelector("svg");
-          if (aria.includes("generate") || aria.includes("submit") || aria.includes("send") || hasSvg) {
-            const input = document.querySelector('textarea, div[role="textbox"], input[type="text"]');
-            const val = input ? (input.value || input.textContent || "").trim() : "";
-            if (val.length > 0) {
-              handleManualSubmit(val);
-            }
           }
         }
       }

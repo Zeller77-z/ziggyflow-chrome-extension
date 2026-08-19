@@ -793,7 +793,7 @@
       task.type = data.type || task.type || "image";
       task.durationSec = Math.max(1, Math.floor((Date.now() - (task.startTime || batchStartTime || (Date.now() - 10000))) / 1000));
     } else {
-      // Create new completed entry if not pre-enqueued (e.g. manual on-page click)
+      // Create new completed entry if not pre-enqueued
       task = {
         id: data.id || ("gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6)),
         prompt: data.prompt || "Google Flow Generation",
@@ -804,7 +804,11 @@
         durationSec: 10,
         createdAt: Date.now()
       };
-      currentBatchTasks.push(task);
+      if (currentBatchTasks.length === 0) {
+        currentBatchTasks = [task];
+      } else {
+        currentBatchTasks.push(task);
+      }
     }
 
     // Save to gallery history

@@ -70,6 +70,10 @@ class BackgroundController {
 
       case "ENQUEUE_BATCH":
         if (Array.isArray(payload.tasks)) {
+          if (!this.isRunning) {
+            this.taskQueue = [];
+            this.stats = { completed: 0, failed: 0, total: 0 };
+          }
           this.taskQueue.push(...payload.tasks);
           this.stats.total += payload.tasks.length;
           this.updateBadge();
