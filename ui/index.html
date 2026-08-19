@@ -666,6 +666,176 @@
       </div>
     </section>
 
+    <!-- 10. SETTINGS TAB (Matching TobyFlow 1:1) -->
+    <section id="tab-settings" class="tab-pane">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+
+        <!-- Section 1: General & Downloads -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f222b;padding-bottom:6px;">
+            <div style="font-weight:700;font-size:12.5px;color:#a3e635;display:flex;align-items:center;gap:6px;">
+              <span>⚙️</span> General & Downloads
+            </div>
+            <button class="btn btn-sm btn-success" id="set-btn-save-all" style="padding:2px 10px;font-size:11px;font-weight:700;">💾 Save All</button>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Default Provider</label>
+            <select id="set-default-provider" class="select-control" style="width:140px;font-size:11px;">
+              <option value="flow">Google Flow</option>
+              <option value="chatgpt">ChatGPT</option>
+              <option value="grok">Grok</option>
+            </select>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Auto-Download Media</label>
+            <input type="checkbox" id="set-auto-download" style="accent-color:#a3e635;transform:scale(1.2);" />
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Download Subfolder</label>
+            <input type="text" id="set-subfolder" class="select-control" style="width:140px;font-size:11px;" value="ziggyflow_output" />
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Filename Template</label>
+            <input type="text" id="set-filename-template" class="select-control" style="width:140px;font-size:11px;" value="[Date]_[Project]_[Prompt]_[Index]" />
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Image Resolution</label>
+            <select id="set-resolution" class="select-control" style="width:140px;font-size:11px;">
+              <option value="4k">4K Ultra HD</option>
+              <option value="2k">2K Quad HD</option>
+              <option value="1k">1K Standard</option>
+              <option value="original">Original Size</option>
+            </select>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Video Resolution</label>
+            <select id="set-video-resolution" class="select-control" style="width:140px;font-size:11px;">
+              <option value="1080p">1080p Full HD</option>
+              <option value="720p">720p HD</option>
+              <option value="4k">4K (when available)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section 2: Flow Watermark Bypass -->
+        <div style="background:var(--bg-panel);border:1px solid rgba(204,255,0,0.25);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+          <div style="font-weight:700;font-size:12.5px;color:#ccff00;display:flex;align-items:center;gap:6px;border-bottom:1px solid #1f222b;padding-bottom:6px;">
+            <span>🚫</span> Flow — No Watermark
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:11.5px;font-weight:600;color:#f1f5f9;">Auto-remove Image Watermark</div>
+              <div style="font-size:10px;color:#94a3b8;">When downloading images from Flow</div>
+            </div>
+            <input type="checkbox" id="set-remove-watermark" style="accent-color:#ccff00;transform:scale(1.2);" />
+          </div>
+        </div>
+
+        <!-- Section 3: AI Platform Defaults -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+          <div style="font-weight:700;font-size:12.5px;color:#38bdf8;display:flex;align-items:center;gap:6px;border-bottom:1px solid #1f222b;padding-bottom:6px;">
+            <span>🤖</span> Google Flow Defaults
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Default Image Model</label>
+            <select id="set-default-image-model" class="select-control" style="width:140px;font-size:11px;">
+              <option value="Nano Banana 2">🍌 Nano Banana 2</option>
+              <option value="Nano Banana Pro">🍌 Nano Banana Pro</option>
+            </select>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Default Video Model</label>
+            <select id="set-default-video-model" class="select-control" style="width:140px;font-size:11px;">
+              <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
+              <option value="Veo 3.1 - Quality">Veo 3.1 - Quality</option>
+              <option value="Veo 3.1 - Lite">Veo 3.1 - Lite</option>
+              <option value="Omni Flash">Omni Flash</option>
+            </select>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Default Image Ratio</label>
+            <select id="set-default-image-ratio" class="select-control" style="width:140px;font-size:11px;">
+              <option value="16:9">⬛ 16:9</option>
+              <option value="9:16">📱 9:16</option>
+              <option value="1:1">⬛ 1:1</option>
+              <option value="4:3">⬛ 4:3</option>
+              <option value="3:4">📱 3:4</option>
+              <option value="21:9">⬛ 21:9</option>
+            </select>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Default Video Ratio</label>
+            <select id="set-default-video-ratio" class="select-control" style="width:140px;font-size:11px;">
+              <option value="16:9">⬛ 16:9</option>
+              <option value="9:16">📱 9:16</option>
+            </select>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Default Video Duration</label>
+            <select id="set-default-video-duration" class="select-control" style="width:140px;font-size:11px;">
+              <option value="6s">6 Seconds</option>
+              <option value="10s">10 Seconds</option>
+              <option value="15s">15 Seconds</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section 4: Advanced Queue & Automation -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+          <div style="font-weight:700;font-size:12.5px;color:#f59e0b;display:flex;align-items:center;gap:6px;border-bottom:1px solid #1f222b;padding-bottom:6px;">
+            <span>⚡</span> Automation & Delays
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Input Timeout (ms)</label>
+            <input type="number" id="set-input-timeout" class="select-control" style="width:90px;font-size:11px;" value="1200" min="200" max="5000" step="100" />
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Random Delay Min (s)</label>
+            <input type="number" id="set-delay-min" class="select-control" style="width:90px;font-size:11px;" value="3" min="1" max="60" />
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:11.5px;color:#cbd5e1;">Random Delay Max (s)</label>
+            <input type="number" id="set-delay-max" class="select-control" style="width:90px;font-size:11px;" value="10" min="1" max="120" />
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:11.5px;font-weight:600;color:#f1f5f9;">Manual Submit Mode</div>
+              <div style="font-size:10px;color:#94a3b8;">Shows top helper banner on page</div>
+            </div>
+            <input type="checkbox" id="set-manual-submit-mode" style="accent-color:#f59e0b;transform:scale(1.2);" />
+          </div>
+        </div>
+
+        <!-- Section 5: Backup & Storage -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;">
+          <div style="font-weight:700;font-size:12.5px;color:#cbd5e1;border-bottom:1px solid #1f222b;padding-bottom:6px;">
+            📦 Backup & Storage
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-secondary" id="set-btn-backup-export" style="flex:1;">⬇ Export JSON</button>
+            <button class="btn btn-sm btn-secondary" id="set-btn-backup-import" style="flex:1;">⬆ Import JSON</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
   </main>
 
   <!-- Bottom Status Footer Bar (Matching Screenshot) -->

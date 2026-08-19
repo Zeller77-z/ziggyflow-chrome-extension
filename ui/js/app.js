@@ -68,7 +68,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       document.getElementById("hdr-btn-settings")?.addEventListener("click", () => {
-        document.querySelector('[data-tab="diagnostics"]')?.click();
+        document.querySelectorAll(".nav-tab-btn").forEach(n => n.classList.remove("active"));
+        document.querySelectorAll(".tab-pane").forEach(pane => pane.classList.remove("active"));
+        const setPane = document.getElementById("tab-settings");
+        if (setPane) setPane.classList.add("active");
+        if (window.SettingsManager) window.SettingsManager.loadAllSettings();
       });
 
       document.getElementById("hdr-btn-bell")?.addEventListener("click", () => {
