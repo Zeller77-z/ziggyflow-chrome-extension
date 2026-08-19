@@ -1026,33 +1026,24 @@
     } catch (e) {}
   }
 
-  /** Gets all unique tile IDs currently on page AND stamps every tile element with data-zf-baseline="1"
-   *  so the tracking engine can unconditionally skip them even if they lack string IDs. */
+  /** Gets all existing tile IDs currently on page before prompt submission */
   function getUniqueTileIds() {
-    const tiles = document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [data-card-id], [data-asset-id], [role="gridcell"], [data-testid*="tile"]');
+    const tiles = document.querySelectorAll('[data-tile-id]');
     const ids = new Set();
     tiles.forEach(t => {
-      // Stamp element so trackGenerationProgress can skip it without relying on string ID
-      t.setAttribute("data-zf-baseline", "1");
-      const id = t.getAttribute("data-tile-id") || t.getAttribute("data-item-id") || t.getAttribute("data-node-id") || t.getAttribute("data-card-id") || t.getAttribute("data-asset-id") || t.dataset?.tileId;
+      const id = t.dataset.tileId || t.getAttribute('data-tile-id');
       if (id) ids.add(id);
     });
     return ids;
   }
 
-  /** Gets all image/video src URLs currently on page AND stamps every media element with data-zf-baseline-media="1" */
+  /** Gets all existing media URLs currently on page before prompt submission */
   function getExistingMediaSrcs() {
     const srcs = new Set();
     document.querySelectorAll('img, video, source').forEach(el => {
       if (isExtensionElement(el)) return;
-      // Stamp element for element-level exclusion
-      el.setAttribute("data-zf-baseline-media", "1");
       const s = el.currentSrc || el.src;
       if (s && !s.startsWith("data:image/svg")) srcs.add(s);
-      const rawSrc = el.getAttribute("src");
-      if (rawSrc) srcs.add(rawSrc);
-      const srcset = el.getAttribute("srcset");
-      if (srcset) srcs.add(srcset);
     });
     return srcs;
   }
@@ -1061,24 +1052,24 @@
   function detectTileStatus(tileEl) {
     if (!tileEl) return "processing";
 
-    // 1. Check for progress percentage (e.g. "60%", "45%")
-    const progressEl = Array.from(tileEl.querySelectorAll("div, span, p")).find(d => {
-      if (d.children.length > 2) return false;
-      return /^\d{1,3}%$/.test((d.textContent || "").trim());
-    });
-    if (progressEl) return "processing";
+    // 1. Check for progress percentage (e.g. "27%", "60%", "45%")
+    const text = (tileEl.textContent || "").trim();
+    if (/\b\d{1,3}%\b/.test(text)) {
+      return "processing";
+    }
 
-    // 2. Check for generating icons (play_circle, progress_activity, sync, hourglass)
+    // 2. Check for aria-busy or generating indicators
+    if (tileEl.getAttribute("aria-busy") === "true" || 
+        tileEl.querySelector('[aria-busy="true"], [role="progressbar"], .skeleton, .animate-spin, div[class*="loading"], div[class*="spinner"]')) {
+      return "processing";
+    }
+
+    // 3. Check for generating icons (play_circle, progress_activity, sync, hourglass)
     const genIcon = Array.from(tileEl.querySelectorAll("i, span, svg")).find(el => {
       const t = (el.textContent || "").trim();
       return t === "play_circle" || t === "progress_activity" || t === "hourglass_empty" || t === "hourglass_bottom" || t === "sync";
     });
     if (genIcon && isElementVisible(genIcon)) return "processing";
-
-    // 3. Check for aria-busy, skeleton, spinner, or progressbar
-    const isBusy = tileEl.getAttribute("aria-busy") === "true" || 
-      tileEl.querySelector('[aria-busy="true"], [role="progressbar"], .skeleton, .animate-spin, div[class*="loading"], div[class*="spinner"]');
-    if (isBusy) return "processing";
 
     // 4. Check for warning/error icon
     const warningIcon = Array.from(tileEl.querySelectorAll("i, span")).find(el => {
@@ -1087,22 +1078,24 @@
     });
     if (warningIcon && isElementVisible(warningIcon)) return "failed";
 
-    // 5. ONLY IF NOT PROCESSING AND NOT FAILED: Check for valid rendered image/video in this tile
+    // 5. Check for valid rendered image/video in this tile
     const video = tileEl.querySelector("video");
     const img = tileEl.querySelector("img");
     const media = video || img;
 
-    if (media && media.src && !media.src.startsWith("data:")) {
+    if (media) {
       const src = media.currentSrc || media.src || "";
       const rawSrc = media.getAttribute("src") || "";
-      const isPlaceholder = src.includes("media.html") || src.endsWith(".html") || rawSrc === "media.html" || rawSrc.endsWith(".html") ||
+      const isPlaceholder = !src || src.startsWith("data:image/svg") || src.includes("media.html") || rawSrc === "media.html" ||
         (!src.startsWith("http://") && !src.startsWith("https://") && !src.startsWith("blob:") && !rawSrc.startsWith("/fx/"));
 
-      const isLoaded = video ? (video.readyState >= 2 || video.duration > 0 || src.startsWith("blob:") || src.includes(".mp4"))
-                             : (img.complete && img.naturalWidth > 60);
-
-      if (!isPlaceholder && isLoaded) {
-        return "success";
+      if (!isPlaceholder) {
+        if (img && img.complete && img.naturalWidth > 60) {
+          return "success";
+        }
+        if (video && (video.readyState >= 2 || video.duration > 0 || src.startsWith("blob:") || src.includes(".mp4"))) {
+          return "success";
+        }
       }
     }
 
@@ -1120,16 +1113,15 @@
     }
   }
 
-  /** ZIG Flow generation tracking — Lightweight, lag-free TobyFlow-grade architecture */
+  /** ZIG Flow generation tracking — Strict TobyFlow-grade architecture:
+   *  Only monitors newly inserted [data-tile-id] elements created after prompt submission. */
   async function trackGenerationProgress(maxWaitMs = 240000, preTileIds = new Set(), preMediaSrcs = new Set(), task = {}) {
     return new Promise((resolve, reject) => {
       window.__zf_isTrackingGeneration = true;
       const startTime = Date.now();
-      const minGenerationWaitMs = 5000; // 5s minimum wait before accepting completed tiles
       const expectedQuantity = Math.max(1, Number(task.quantity) || 1);
       const collectedResults = [];
       const discoveredMediaUrls = new Set();
-      const tileStateMap = new Map(); // Map<element, { firstSeenAt, everSeenProcessing, lastStatus }>
       let isResolved = false;
       let lastReportedProgress = "";
 
@@ -1143,127 +1135,59 @@
         if (isResolved) return;
         const elapsed = Date.now() - startTime;
 
-        // 1. Lightweight progress percentage query (targeted selectors only — NO full page scans)
+        // 1. Lightweight progress percentage query
         let liveProgress = null;
         const progressNodes = document.querySelectorAll('[aria-busy="true"], [role="progressbar"], div[class*="progress"], [data-testid*="progress"]');
         for (const node of progressNodes) {
           if (isExtensionElement(node)) continue;
-          const text = (node.textContent || "").trim();
-          const match = text.match(/(\d{1,3})%/);
+          const match = (node.textContent || "").match(/(\d{1,3})%/);
           if (match && Number(match[1]) > 0 && Number(match[1]) <= 100) {
             liveProgress = match[0];
             break;
           }
         }
 
-        if (liveProgress && liveProgress !== lastReportedProgress) {
-          lastReportedProgress = liveProgress;
-          try {
-            window.dispatchEvent(new CustomEvent("ZF_PROGRESS_UPDATE", { detail: liveProgress }));
-            if (typeof window.__zf_onProgress === "function") window.__zf_onProgress(liveProgress);
-          } catch(e) {}
-          chrome.runtime.sendMessage({ action: "LIVE_RENDER_PROGRESS", progress: liveProgress }).catch(() => {});
-        }
-
-        // 2. Scan for newly created tile elements (STRICTLY EXCLUDING pre-existing ones)
-        const allTiles = Array.from(document.querySelectorAll('[data-tile-id], [role="gridcell"], [data-item-id], [data-node-id]'));
+        // 2. Query strictly all tiles currently on page with data-tile-id
+        const allTileElements = Array.from(document.querySelectorAll('[data-tile-id]'));
         
-        for (const tile of allTiles) {
-          // ── GUARD 1: Element-level baseline stamp — unconditional skip ──
-          if (tile.getAttribute("data-zf-baseline") === "1") {
-            continue;
-          }
+        // Filter strictly to tiles that were NOT present before generation started
+        const newTiles = allTileElements.filter(t => {
+          const tid = t.dataset.tileId || t.getAttribute('data-tile-id');
+          return tid && !preTileIds.has(tid);
+        });
 
-          // ── GUARD 2: String-based tile ID exclusion (backup) ──
-          const tileId = tile.getAttribute("data-tile-id") || tile.getAttribute("data-item-id") || tile.getAttribute("data-node-id") || tile.getAttribute("data-card-id") || tile.getAttribute("data-asset-id") || tile.dataset?.tileId;
-          if (tileId && preTileIds.has(tileId)) {
-            continue;
+        for (const tile of newTiles) {
+          const tileId = tile.dataset.tileId || tile.getAttribute('data-tile-id');
+          
+          // Check percentage inside this specific new tile
+          const tileText = (tile.textContent || "").trim();
+          const tilePctMatch = tileText.match(/(\d{1,3})%/);
+          if (tilePctMatch && Number(tilePctMatch[1]) > 0 && Number(tilePctMatch[1]) <= 100) {
+            liveProgress = tilePctMatch[0];
           }
-
-          // ── GUARD 3: Skip extension elements ──
-          if (isExtensionElement(tile)) continue;
 
           const status = detectTileStatus(tile);
 
-          // Track state transitions for this tile
-          if (!tileStateMap.has(tile)) {
-            tileStateMap.set(tile, { firstSeenAt: Date.now(), everSeenProcessing: false, lastStatus: status });
-          }
-          const tileState = tileStateMap.get(tile);
-          if (status === "processing") {
-            tileState.everSeenProcessing = true;
-
-            // Also check if this tile contains a progress percentage
-            const tileText = (tile.textContent || "").trim();
-            const tilePctMatch = tileText.match(/(\d{1,3})%/);
-            if (tilePctMatch && Number(tilePctMatch[1]) > 0 && Number(tilePctMatch[1]) <= 100) {
-              const tilePct = tilePctMatch[0];
-              if (tilePct !== lastReportedProgress) {
-                lastReportedProgress = tilePct;
-                try {
-                  window.dispatchEvent(new CustomEvent("ZF_PROGRESS_UPDATE", { detail: tilePct }));
-                  if (typeof window.__zf_onProgress === "function") window.__zf_onProgress(tilePct);
-                } catch(e) {}
-              }
-            }
-          }
-          tileState.lastStatus = status;
-
           if (status === "success") {
-            // Must have passed minimum generation wait
-            if (elapsed < minGenerationWaitMs) {
-              continue;
-            }
-
-            // Lazy-load grace: If tile never showed "processing" and appeared within 15s, it might be pre-existing
-            if (!tileState.everSeenProcessing && elapsed < 15000) {
-              const media = tile.querySelector("video") || tile.querySelector("img");
-              const mediaUrl = media ? (media.currentSrc || media.src) : null;
-              if (mediaUrl && preMediaSrcs.has(mediaUrl)) {
-                tile.setAttribute("data-zf-baseline", "1");
-                continue;
-              }
-              if ((Date.now() - tileState.firstSeenAt) < 3000) {
-                continue;
-              }
-            }
-
             const video = tile.querySelector("video");
             const img = tile.querySelector("img");
             const media = video || img;
             const mediaUrl = media ? (media.currentSrc || media.src) : null;
 
-            // ── GUARD 4: Media URL exclusion ──
+            // Must have valid URL and not be pre-existing
             if (!mediaUrl || preMediaSrcs.has(mediaUrl) || discoveredMediaUrls.has(mediaUrl)) continue;
-            if (mediaUrl.includes("media.html") || mediaUrl.startsWith("data:image/svg")) continue;
-            if (!mediaUrl.startsWith("http://") && !mediaUrl.startsWith("https://") && !mediaUrl.startsWith("blob:")) continue;
 
-            // ── GUARD 5: Media readiness verification ──
-            if (img && (!img.complete || img.naturalWidth <= 60)) continue;
-            if (video && video.readyState < 2 && !mediaUrl.startsWith("blob:") && !mediaUrl.includes(".mp4")) continue;
-
-            // ── GUARD 6: Ignore tiny UI icons ──
-            if (media) {
-              const rect = media.getBoundingClientRect();
-              if (rect.width < 70 || rect.height < 50) continue;
-              const lower = mediaUrl.toLowerCase();
-              if (lower.includes("avatar") || lower.includes("profile") || lower.includes("icon") || lower.includes("logo") || lower.includes("placeholder")) continue;
-            }
-
-            // ✅ Verified new generation complete!
             discoveredMediaUrls.add(mediaUrl);
-            tile.setAttribute("data-zf-baseline", "1");
 
             const res = {
               url: mediaUrl,
               type: video ? "video" : "image",
-              tileId: tileId || ("tile_" + Date.now())
+              tileId: tileId
             };
 
             collectedResults.push(res);
-            console.log(`ZIG Flow: ✅ Captured verified NEW media [${collectedResults.length}/${expectedQuantity}]:`, res);
+            console.log(`ZIG Flow: ✅ Verified NEW generated media [${collectedResults.length}/${expectedQuantity}]:`, res);
 
-            // Broadcast media ready notification
             const itemPayload = {
               id: task.id ? `${task.id}_${collectedResults.length}` : ("gen_" + Date.now()),
               taskId: task.id,
@@ -1291,18 +1215,17 @@
               resolve(collectedResults[0]);
               return;
             }
-          } else if (status === "failed" && elapsed > 15000 && collectedResults.length === 0) {
-            cleanup();
-            reject(new Error("Generation failed on Google Flow tile (error/warning detected)."));
-            return;
           }
         }
 
-        // If at least 1 image was collected and we waited past threshold, resolve
-        if (collectedResults.length > 0 && elapsed > 10000) {
-          cleanup();
-          resolve(collectedResults[0]);
-          return;
+        // Broadcast progress if updated
+        if (liveProgress && liveProgress !== lastReportedProgress) {
+          lastReportedProgress = liveProgress;
+          try {
+            window.dispatchEvent(new CustomEvent("ZF_PROGRESS_UPDATE", { detail: liveProgress }));
+            if (typeof window.__zf_onProgress === "function") window.__zf_onProgress(liveProgress);
+          } catch(e) {}
+          chrome.runtime.sendMessage({ action: "LIVE_RENDER_PROGRESS", progress: liveProgress }).catch(() => {});
         }
 
         if (elapsed > maxWaitMs) {
@@ -1315,7 +1238,6 @@
         }
       };
 
-      // Lightweight 500ms polling — no heavy observers
       const pollTimer = setInterval(() => {
         if (isTaskAborted) {
           cleanup();
@@ -1325,8 +1247,8 @@
         check();
       }, 500);
 
-      // First check after minimum wait
-      setTimeout(check, minGenerationWaitMs);
+      // Immediate first check
+      check();
     });
   }
 
