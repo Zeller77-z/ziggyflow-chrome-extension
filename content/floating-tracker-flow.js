@@ -53,31 +53,34 @@ if(self.__zigflowFTLoaded__){}else{let _getTrackerT2=function(key,params){var t=
     } catch(_) {}
   }
 
-  // Watermark removal path
-  if (on) {
-    var b64 = null, mime = null;
-    try {
-      var r0;
-      try {
-        r0 = await fetch(url, { cache: "no-store" });
-      } catch (e1) {
-        r0 = await fetch(url, { credentials: "include", cache: "no-store" });
-      }
-      if (r0 && r0.ok) {
-        var bl = await r0.blob();
-        mime = bl.type || (isVid ? "video/mp4" : "image/png");
-        b64 = await new Promise(function(res, rej) {
-          var fr = new FileReader();
-          fr.onload = function() { res(String(fr.result).split(",")[1]); };
-          fr.onerror = function() { rej(new Error("blob read error")); };
-          fr.readAsDataURL(bl);
-        });
-      }
-    } catch(e) {
-      console.warn("ZIG Flow: Watermark fetch notice:", e.message);
-    }
+  // 1. Fetch image/video binary in page context
+  var b64 = null;
+  var mime = isVid ? "video/mp4" : "image/png";
 
-    if (b64) {
+  try {
+    var r0;
+    try {
+      r0 = await fetch(url, { cache: "no-store" });
+    } catch (e1) {
+      r0 = await fetch(url, { credentials: "include", cache: "no-store" });
+    }
+    if (r0 && r0.ok) {
+      var bl = await r0.blob();
+      mime = bl.type || mime;
+      b64 = await new Promise(function(res, rej) {
+        var fr = new FileReader();
+        fr.onload = function() { res(String(fr.result).split(",")[1]); };
+        fr.onerror = function() { rej(new Error("blob read error")); };
+        fr.readAsDataURL(bl);
+      });
+    }
+  } catch(e) {
+    console.warn("ZIG Flow: Media fetch notice:", e.message);
+  }
+
+  // 2. Clean Watermark Removal Path
+  if (on && b64) {
+    try {
       var wm = await new Promise(function(resolve) {
         chrome.runtime.sendMessage({
           action: "removeWatermarkAndDownload",
@@ -90,21 +93,27 @@ if(self.__zigflowFTLoaded__){}else{let _getTrackerT2=function(key,params){var t=
         });
       });
       if (wm && wm.success) return true;
-    }
+    } catch(e) {}
   }
 
-  // Direct In-Page Download Link Fallback
-  try {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = safeFilename;
-    a.target = "_blank";
-    (document.body || document.documentElement).appendChild(a);
-    a.click();
-    setTimeout(function() { a.remove(); }, 1000);
-  } catch(e) {}
+  // 3. Clean Background Data-URL Download (Zero DOM bubbling, Zero tab navigation, Zero Freezing!)
+  if (b64) {
+    try {
+      var dataUrl = "data:" + mime + ";base64," + b64;
+      var bgRes = await new Promise(function(resolve) {
+        chrome.runtime.sendMessage({
+          action: "chromeDownload",
+          url: dataUrl,
+          filename: safeFilename
+        }, function(resp) {
+          resolve(chrome.runtime.lastError ? null : resp);
+        });
+      });
+      if (bgRes && bgRes.success) return true;
+    } catch(e) {}
+  }
 
-  // Background Chrome Downloads API Fallback
+  // 4. Background direct URL download fallback
   try {
     chrome.runtime.sendMessage({
       action: "chromeDownload",
