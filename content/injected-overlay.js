@@ -14,10 +14,15 @@
   let batchTimerInterval = null;
   let isSoundEnabled = true;
 
-  // Load previous gallery tasks from storage
+  // Load previous gallery tasks from storage and populate initial HUD
   chrome.storage.local.get(['recentGeneratedTasks'], (res) => {
-    if (res?.recentGeneratedTasks && Array.isArray(res.recentGeneratedTasks)) {
+    if (res?.recentGeneratedTasks && Array.isArray(res.recentGeneratedTasks) && res.recentGeneratedTasks.length > 0) {
       galleryHistoryTasks = res.recentGeneratedTasks.slice(-30);
+      if (currentBatchTasks.length === 0) {
+        currentBatchTasks = [galleryHistoryTasks[0]];
+        updateMiniSummary();
+        renderTaskList();
+      }
       renderExpandedGallery();
     }
   });
@@ -44,24 +49,23 @@
         pointer-events: none;
       `;
 
-      // Restore saved position or default to top-right (well above prompt bar)
-      let savedPos = { top: 75, right: 24 };
+      // Restore saved position or default to bottom-right (matching TobyFlow in Screenshot 2)
+      let savedPos = { bottom: 20, right: 380 };
       try {
         const stored = localStorage.getItem("zf_mini_window_pos");
         if (stored) {
-          const parsed = JSON.parse(stored);
-          // If stored position was at the bottom (old bug), reset to top
-          if (parsed.top > window.innerHeight - 250) {
-            savedPos = { top: 75, right: 24 };
-          } else {
-            savedPos = parsed;
-          }
+          savedPos = JSON.parse(stored);
         }
       } catch(e) {}
 
-      const posStyle = savedPos.left !== undefined 
-        ? `top: ${savedPos.top}px; left: ${savedPos.left}px;` 
-        : `top: ${savedPos.top || 75}px; right: ${savedPos.right || 24}px;`;
+      let posStyle = "";
+      if (savedPos.left !== undefined && savedPos.top !== undefined) {
+        posStyle = `top: ${savedPos.top}px; left: ${savedPos.left}px;`;
+      } else if (savedPos.bottom !== undefined) {
+        posStyle = `bottom: ${savedPos.bottom}px; right: ${savedPos.right}px;`;
+      } else {
+        posStyle = `bottom: 20px; right: 380px;`;
+      }
 
       host.innerHTML = `
         <style>
@@ -121,8 +125,8 @@
         <div id="zf-pill-btn" data-ziggy-internal="true" style="
           pointer-events: auto;
           position: fixed;
-          top: 75px;
-          right: 24px;
+          bottom: 24px;
+          right: 380px;
           background: #141518;
           color: #ffffff;
           border: 1.5px solid #a3e635;
@@ -146,14 +150,14 @@
         <!-- Exact TobyFlow Mini HUD Window (Matching Screenshot 1 & 2) -->
         <div id="zf-mini-window" data-ziggy-internal="true" style="
           pointer-events: auto;
-          display: none;
+          display: flex;
           position: fixed;
           ${posStyle}
-          width: 310px;
+          width: 320px;
           max-width: calc(100vw - 32px);
           background: #121316;
           border: 1.5px solid #282a32;
-          border-radius: 14px;
+          border-radius: 16px;
           box-shadow: 0 20px 60px rgba(0,0,0,0.95), 0 0 25px rgba(0,0,0,0.6);
           overflow: hidden;
           flex-direction: column;
