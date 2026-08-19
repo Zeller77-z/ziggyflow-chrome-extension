@@ -68,7 +68,7 @@
   // =============================================
   // MESSAGE ROUTER
   // =============================================
-  chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     try {
       if (request.action === "GENERATE_PROMPT" && (!request.task.provider || request.task.provider === "flow")) {
         isTaskAborted = false;
@@ -108,31 +108,33 @@
       }
 
       if (request.action === "TEST_DOM_ELEMENT_ACTION") {
-        const slotData = request.template?.[request.slotName];
-        let el = resolveTemplateElement(slotData);
-        if (!el && request.slotName === "promptInput") el = await findExactPromptInput(2000);
-        if (!el && request.slotName === "generateButton") el = await findGenerateButton(null, 2000);
+        (async () => {
+          const slotData = request.template?.[request.slotName];
+          let el = resolveTemplateElement(slotData);
+          if (!el && request.slotName === "promptInput") el = await findExactPromptInput(2000);
+          if (!el && request.slotName === "generateButton") el = await findGenerateButton(null, 2000);
 
-        if (el) {
-          if (request.actionType === "highlight") {
-            highlightElement(el, "#38bdf8");
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-            showLiveToast(`👁 Testing Highlight: <${el.tagName.toLowerCase()}>`);
-          } else if (request.actionType === "click") {
-            highlightElement(el, "#a3e635");
-            showLiveToast(`▶ Testing Strategy [${(request.template?.clickStrategy || 'standard').toUpperCase()}] on <${el.tagName.toLowerCase()}>`);
-            await executeConfiguredStrategy(el, request.template);
+          if (el) {
+            if (request.actionType === "highlight") {
+              highlightElement(el, "#38bdf8");
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+              showLiveToast(`👁 Testing Highlight: <${el.tagName.toLowerCase()}>`);
+            } else if (request.actionType === "click") {
+              highlightElement(el, "#a3e635");
+              showLiveToast(`▶ Testing Strategy [${(request.template?.clickStrategy || 'standard').toUpperCase()}] on <${el.tagName.toLowerCase()}>`);
+              await executeConfiguredStrategy(el, request.template);
+            }
+            const rect = el.getBoundingClientRect();
+            sendResponse({
+              found: true,
+              tag: el.tagName,
+              rect: `${Math.round(rect.width)}x${Math.round(rect.height)}`
+            });
+          } else {
+            showLiveToast(`⚠️ Element not found for ${request.slotName}`, true);
+            sendResponse({ found: false });
           }
-          const rect = el.getBoundingClientRect();
-          sendResponse({
-            found: true,
-            tag: el.tagName,
-            rect: `${Math.round(rect.width)}x${Math.round(rect.height)}`
-          });
-        } else {
-          showLiveToast(`⚠️ Element not found for ${request.slotName}`, true);
-          sendResponse({ found: false });
-        }
+        })();
         return true;
       }
 
@@ -2533,6 +2535,52 @@
       }
     }, true);
   }
+
+  
+  // Global helpers for FloatingTracker live tile percentage scanning
+  window.extractTileProgress = function(tileEl) {
+    if (!tileEl) return null;
+    var els = tileEl.querySelectorAll("span, div, p");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.children.length > 2) continue;
+      var text = el.textContent.trim();
+      if (/^\d{1,3}%$/.test(text)) {
+        return parseInt(text, 10);
+      }
+    }
+    return null;
+  };
+
+  window._getCachedTiles = function() {
+    return Array.from(document.querySelectorAll('[data-tile-id]'));
+  };
+
+  window.detectTileStatus = function(tileEl) {
+    if (!tileEl) return "processing";
+    const text = (tileEl.textContent || "").trim();
+    if (/\b\d{1,3}%\b/.test(text)) return "processing";
+    if (tileEl.getAttribute("aria-busy") === "true" || 
+        tileEl.querySelector('[aria-busy="true"], [role="progressbar"], .skeleton, .animate-spin, div[class*="loading"], div[class*="spinner"]')) {
+      return "processing";
+    }
+    const genIcon = Array.from(tileEl.querySelectorAll("i, span, svg")).find(el => {
+      const t = (el.textContent || "").trim();
+      return t === "play_circle" || t === "progress_activity" || t === "hourglass_empty" || t === "hourglass_bottom" || t === "sync";
+    });
+    if (genIcon) return "processing";
+
+    const video = tileEl.querySelector("video");
+    const img = tileEl.querySelector("img");
+    const media = video || img;
+    if (media) {
+      const src = media.currentSrc || media.src || "";
+      if (src && !src.startsWith("data:image/svg") && !src.includes("media.html")) {
+        return "success";
+      }
+    }
+    return "processing";
+  };
 
   // Initialize manual generation detector
   setupManualGenerationDetector();
