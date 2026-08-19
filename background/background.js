@@ -620,6 +620,9 @@ class BackgroundController {
 
   broadcastTracker() {
     const data = this.buildTrackerData();
+    try {
+      chrome.storage.local.set({ "zigflow_active_tracker_data": data });
+    } catch(e) {}
     chrome.tabs.query({}, (tabs) => {
       if (!tabs) return;
       tabs.forEach((tab) => {
