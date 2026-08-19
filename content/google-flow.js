@@ -675,17 +675,17 @@
       showLiveToast("🚀 Generation submitted! Tracking progress...");
     } else {
       // ==========================================
-      // AUTO SUBMIT WORKFLOW (Direct Native Enter Key + Button Click)
+      // AUTO SUBMIT WORKFLOW (Full TobyFlow-Grade Multi-Tier Bypass Engine)
       // ==========================================
-      console.log("ZiggyFlow: Auto-Submitting via Direct Enter Keypress (No mapping required!)...");
-      showLiveToast("🚀 Submitting generation directly via Enter key...", false);
+      console.log("ZiggyFlow: Auto-Submitting via TobyFlow-grade Multi-Tier Bypass Engine...");
+      showLiveToast("🚀 Submitting generation via TobyFlow bypass...", false);
 
       // A. Focus prompt input directly
       promptInput.focus();
       await sleep(60);
 
       // B. Dispatch Full Native Enter Event Sequence in Isolated World
-      const enterDown = new KeyboardEvent("keydown", {
+      const enterOpts = {
         key: "Enter",
         code: "Enter",
         keyCode: 13,
@@ -695,37 +695,14 @@
         cancelable: true,
         composed: true,
         view: window
-      });
-      const enterPress = new KeyboardEvent("keypress", {
-        key: "Enter",
-        code: "Enter",
-        keyCode: 13,
-        which: 13,
-        charCode: 13,
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        view: window
-      });
-      const enterUp = new KeyboardEvent("keyup", {
-        key: "Enter",
-        code: "Enter",
-        keyCode: 13,
-        which: 13,
-        charCode: 13,
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        view: window
-      });
+      };
+      promptInput.dispatchEvent(new KeyboardEvent("keydown", enterOpts));
+      promptInput.dispatchEvent(new KeyboardEvent("keypress", enterOpts));
+      promptInput.dispatchEvent(new KeyboardEvent("keyup", enterOpts));
 
-      promptInput.dispatchEvent(enterDown);
-      promptInput.dispatchEvent(enterPress);
-      promptInput.dispatchEvent(enterUp);
-
-      // C. Dispatch Enter & form submission in Main World context
-      dispatchEnterInMainWorld(task.prompt);
-      await sleep(150);
+      // C. Dispatch TobyFlow 4-Method Slate & React Fiber Submit Bypass in Main World
+      executeTobyFlowSubmitBypass(task.prompt);
+      await sleep(200);
 
       // D. Complementary: if a real Generate button is near the prompt box, click it cleanly as backup
       try {
@@ -733,13 +710,13 @@
         if (generateBtn && !isNegativeButton(generateBtn) && !isExtensionElement(generateBtn)) {
           const btnRect = generateBtn.getBoundingClientRect();
           if (btnRect.top >= window.innerHeight * 0.38) {
-            console.log("ZiggyFlow: Complementary click on Generate button:", generateBtn);
+            console.log("ZiggyFlow: Backup click on Generate button:", generateBtn);
             clickButtonCleanly(generateBtn);
           }
         }
       } catch (e) {}
 
-      console.log("ZiggyFlow: Auto-Submit completed via direct Enter keystroke.");
+      console.log("ZiggyFlow: Auto-Submit completed via TobyFlow multi-tier bypass.");
     }
 
     // 5. Track live generation smoothly with throttled progress monitor
@@ -843,28 +820,56 @@
     });
   }
 
-  /** Safely synchronizes React 18 state in Main World context without destructive ancestor traversal */
+  /** Safely synchronizes React 18 state & Slate.js in Main World context */
   function syncReactStateInMainWorld(promptText) {
     try {
       const sanitizedText = JSON.stringify(promptText || "");
       const code = `
         try {
-          const input = document.querySelector('[data-ziggy-prompt="true"]');
+          const _slateSelector = '[data-slate-editor="true"], [contenteditable="true"][role="textbox"], textarea';
+          const slateEl = document.querySelector(_slateSelector) || document.querySelector('[data-ziggy-prompt="true"]');
           const btn = document.querySelector('[data-ziggy-generate="true"]');
           const text = ${sanitizedText};
           
-          if (input && text) {
-            if (input._valueTracker) {
-              input._valueTracker.setValue('');
+          if (slateEl && text) {
+            // Check for Slate internal editor via React Fiber
+            const fiberKey = Object.keys(slateEl).find(k => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$"));
+            if (fiberKey) {
+              let fiber = slateEl[fiberKey];
+              while (fiber) {
+                if (fiber.dependencies && fiber.dependencies.firstContext) {
+                  let ctx = fiber.dependencies.firstContext;
+                  while (ctx) {
+                    const editor = ctx.memoizedValue;
+                    if (editor && typeof editor.insertText === "function" && Array.isArray(editor.children)) {
+                      try {
+                        if (!editor.selection) {
+                          editor.selection = { anchor: { path: [0, 0], offset: 0 }, focus: { path: [0, 0], offset: 0 } };
+                        }
+                        editor.insertText(text);
+                        if (typeof editor.onChange === "function") editor.onChange();
+                        console.log("ZiggyFlow [Slate]: Injected via Slate.js editor instance \u2705");
+                      } catch(e) {}
+                      break;
+                    }
+                    ctx = ctx.next;
+                  }
+                }
+                fiber = fiber.return;
+              }
+            }
+
+            if (slateEl._valueTracker) {
+              slateEl._valueTracker.setValue('');
             }
             
-            const proto = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+            const proto = slateEl instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
             const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-            if (setter) setter.call(input, text);
-            else input.value = text;
+            if (setter) setter.call(slateEl, text);
+            else slateEl.value = text;
 
-            input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+            slateEl.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+            slateEl.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
           }
 
           if (btn) {
@@ -883,62 +888,164 @@
     } catch (e) {}
   }
 
-  /** Dispatches native Enter key and form submit in Main World context */
-  function dispatchEnterInMainWorld(promptText) {
+  /** TobyFlow-Grade Multi-Method Submit Bypass Engine in Main World Context */
+  function executeTobyFlowSubmitBypass(promptText) {
     try {
+      const sanitizedText = JSON.stringify(promptText || "");
       const code = `
         try {
-          const input = document.querySelector('[data-ziggy-prompt="true"]') || 
-                        document.querySelector('textarea, [contenteditable="true"][role="textbox"]');
-          if (input) {
-            input.focus();
+          const _slateSelector = '[data-slate-editor="true"], [contenteditable="true"][role="textbox"], textarea[data-testid="prompt-input"], textarea';
+          const slateEl = document.querySelector(_slateSelector) || document.querySelector('[data-ziggy-prompt="true"]');
+          
+          // 1. Locate Generate / Submit Button
+          let submitBtn = document.querySelector('[data-ziggy-generate="true"]');
+          if (!submitBtn) {
+            const allBtns = Array.from(document.querySelectorAll('button, div[role="button"]'));
+            for (const b of allBtns) {
+              const rect = b.getBoundingClientRect();
+              if (rect.top < window.innerHeight * 0.38) continue; // Skip header/back buttons
+              const icon = b.querySelector('i.google-symbols, i[class*="symbol"], svg');
+              const iconTxt = icon ? (icon.textContent || "").trim() : "";
+              const aria = (b.getAttribute("aria-label") || "").toLowerCase();
+              if (iconTxt === "arrow_forward" || iconTxt === "send" || aria.includes("generate") || aria.includes("submit") || aria.includes("send")) {
+                submitBtn = b;
+                break;
+              }
+            }
+          }
+
+          let submitted = false;
+
+          // ==========================================
+          // METHOD 1: React 18 Synthetic __reactProps$ onClick Bypass (TobyFlow Pattern)
+          // ==========================================
+          if (submitBtn) {
+            try {
+              const propsKey = Object.keys(submitBtn).find(k => k.startsWith("__reactProps$"));
+              if (propsKey && submitBtn[propsKey] && typeof submitBtn[propsKey].onClick === "function") {
+                const rect = submitBtn.getBoundingClientRect();
+                const fakeEvent = {
+                  preventDefault: () => {},
+                  stopPropagation: () => {},
+                  persist: () => {},
+                  nativeEvent: { isTrusted: true },
+                  isTrusted: true,
+                  target: submitBtn,
+                  currentTarget: submitBtn,
+                  bubbles: true,
+                  cancelable: true,
+                  defaultPrevented: false,
+                  eventPhase: 3,
+                  timeStamp: Date.now(),
+                  type: "click",
+                  button: 0,
+                  buttons: 1,
+                  clientX: rect.left + rect.width / 2,
+                  clientY: rect.top + rect.height / 2
+                };
+                submitBtn[propsKey].onClick(fakeEvent);
+                submitted = true;
+                console.log("ZiggyFlow [Bypass]: React __reactProps$ synthetic onClick dispatched \u2705");
+              }
+            } catch(e) {}
+          }
+
+          // ==========================================
+          // METHOD 2: Fiber Tree onSubmit / handleSubmit Hook (TobyFlow Pattern)
+          // ==========================================
+          if (!submitted && submitBtn) {
+            try {
+              const fiberKey = Object.keys(submitBtn).find(k => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$"));
+              if (fiberKey) {
+                let fiber = submitBtn[fiberKey];
+                let depth = 0;
+                while (fiber && depth < 50) {
+                  if (fiber.pendingProps && typeof fiber.pendingProps.onSubmit === "function") {
+                    fiber.pendingProps.onSubmit({ preventDefault: () => {}, stopPropagation: () => {} });
+                    submitted = true;
+                    console.log("ZiggyFlow [Bypass]: React Fiber pendingProps.onSubmit executed \u2705");
+                    break;
+                  }
+                  if (fiber.stateNode && typeof fiber.stateNode.handleSubmit === "function") {
+                    fiber.stateNode.handleSubmit();
+                    submitted = true;
+                    console.log("ZiggyFlow [Bypass]: React Fiber stateNode.handleSubmit executed \u2705");
+                    break;
+                  }
+                  fiber = fiber.return;
+                  depth++;
+                }
+              }
+            } catch(e) {}
+          }
+
+          // ==========================================
+          // METHOD 3: Slate Context & Hook Generator Method
+          // ==========================================
+          if (!submitted && slateEl) {
+            try {
+              const edFiberKey = Object.keys(slateEl).find(k => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$"));
+              if (edFiberKey) {
+                let edFiber = slateEl[edFiberKey];
+                let depth = 0;
+                while (edFiber && depth < 50) {
+                  if (edFiber.dependencies && edFiber.dependencies.firstContext) {
+                    let ctx = edFiber.dependencies.firstContext;
+                    while (ctx) {
+                      const val = ctx.memoizedValue;
+                      if (val && typeof val === "object") {
+                        const fn = val.submit || val.handleSubmit || val.onSubmit || val.sendMessage || val.generate;
+                        if (typeof fn === "function") {
+                          fn();
+                          submitted = true;
+                          console.log("ZiggyFlow [Bypass]: Slate Fiber context submit hook executed \u2705");
+                          break;
+                        }
+                      }
+                      ctx = ctx.next;
+                    }
+                  }
+                  edFiber = edFiber.return;
+                  depth++;
+                }
+              }
+            } catch(e) {}
+          }
+
+          // ==========================================
+          // METHOD 4: Native Enter & Pointer Event Sequence
+          // ==========================================
+          if (slateEl) {
+            slateEl.focus();
             
-            // 1. Dispatch keydown with Enter
-            const enterEvt = new KeyboardEvent('keydown', {
-              key: 'Enter',
-              code: 'Enter',
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              view: window
-            });
-            input.dispatchEvent(enterEvt);
+            const enterOpts = { key: "Enter", code: "Enter", keyCode: 13, which: 13, charCode: 13, bubbles: true, cancelable: true, composed: true, view: window };
+            slateEl.dispatchEvent(new KeyboardEvent("keydown", enterOpts));
+            slateEl.dispatchEvent(new KeyboardEvent("keypress", enterOpts));
+            slateEl.dispatchEvent(new KeyboardEvent("keyup", enterOpts));
 
-            // 2. Dispatch keypress
-            const pressEvt = new KeyboardEvent('keypress', {
-              key: 'Enter',
-              code: 'Enter',
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              view: window
-            });
-            input.dispatchEvent(pressEvt);
+            // Ctrl+Enter fallback
+            slateEl.dispatchEvent(new KeyboardEvent("keydown", { ...enterOpts, ctrlKey: true }));
 
-            // 3. Dispatch keyup
-            const upEvt = new KeyboardEvent('keyup', {
-              key: 'Enter',
-              code: 'Enter',
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              view: window
-            });
-            input.dispatchEvent(upEvt);
-
-            // 4. Request submit if inside form
-            const form = input.closest('form');
-            if (form && typeof form.requestSubmit === 'function') {
+            const form = slateEl.closest("form");
+            if (form && typeof form.requestSubmit === "function") {
               try { form.requestSubmit(); } catch(e) {}
             }
           }
-        } catch(err) {}
+
+          if (submitBtn) {
+            submitBtn.focus();
+            submitBtn.click();
+            const rect = submitBtn.getBoundingClientRect();
+            const ptOpts = { bubbles: true, cancelable: true, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2, button: 0, view: window };
+            submitBtn.dispatchEvent(new PointerEvent("pointerdown", ptOpts));
+            submitBtn.dispatchEvent(new MouseEvent("mousedown", ptOpts));
+            submitBtn.dispatchEvent(new PointerEvent("pointerup", ptOpts));
+            submitBtn.dispatchEvent(new MouseEvent("mouseup", ptOpts));
+            submitBtn.dispatchEvent(new MouseEvent("click", ptOpts));
+          }
+        } catch(err) {
+          console.warn("ZiggyFlow: Main World Submit Bypass error:", err);
+        }
       `;
 
       const script = document.createElement("script");
