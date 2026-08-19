@@ -17,6 +17,24 @@
   let canvasObserverInterval = null;
   let isSoundEnabled = true;
 
+  // Snapshot all existing page media on load so old assets are never downloaded
+  function snapshotExistingPageMedia() {
+    try {
+      document.querySelectorAll('img, video, source').forEach(el => {
+        if (el.closest && el.closest("#ziggyflow-floating-hud")) return;
+        const s = el.currentSrc || el.src;
+        if (s) processedMediaUrls.add(s);
+        const raw = el.getAttribute("src");
+        if (raw) processedMediaUrls.add(raw);
+      });
+      document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [data-card-id]').forEach(el => {
+        const tid = el.getAttribute("data-tile-id") || el.getAttribute("data-item-id") || el.getAttribute("data-node-id") || el.getAttribute("data-card-id") || el.dataset?.tileId;
+        if (tid) processedTileIds.add(tid);
+      });
+    } catch(e) {}
+  }
+  snapshotExistingPageMedia();
+
   // Load previous gallery tasks from storage and populate initial gallery
   chrome.storage.local.get(['recentGeneratedTasks'], (res) => {
     if (res?.recentGeneratedTasks && Array.isArray(res.recentGeneratedTasks) && res.recentGeneratedTasks.length > 0) {
@@ -33,6 +51,7 @@
   // =============================================
   function initOverlay() {
     try {
+      snapshotExistingPageMedia();
       const existing = document.getElementById("ziggyflow-floating-hud");
       if (existing) existing.remove();
 
@@ -171,10 +190,10 @@
           <span id="zf-pill-status" style="background:#ccff00;color:#121316;padding:1px 6px;border-radius:6px;font-size:9.5px;font-weight:800;">Open</span>
         </div>
 
-        <!-- ZIG Flow Mini HUD Window -->
+        <!-- ZIG Flow Mini HUD Window (Starts hidden, appears upon generation) -->
         <div id="zf-mini-window" data-ziggy-internal="true" style="
           pointer-events: auto;
-          display: flex;
+          display: none;
           position: fixed;
           ${posStyle}
           width: 325px;
@@ -223,7 +242,8 @@
             <div style="display:flex;align-items:center;gap:5px;">
               <span id="zf-mini-header-progress" style="font-size:11px;font-weight:600;color:#cbd5e1;">0/0 done</span>
               <button id="zf-btn-download-all" class="zf-icon-btn zf-icon-btn-lime" style="padding: 2px 6px; font-size: 11px;" title="Download all completed">⬇</button>
-              <button id="zf-btn-close-mini" class="zf-icon-btn" style="padding: 2px 6px; font-size: 11px;" title="Close">✕</button>
+              <button id="zf-btn-min-mini" class="zf-icon-btn" style="padding: 2px 6px; font-size: 11px;" title="Minimize to Pill">_</button>
+              <button id="zf-btn-close-mini" class="zf-icon-btn" style="padding: 2px 6px; font-size: 11px;" title="Close HUD">✕</button>
             </div>
           </div>
 
@@ -486,7 +506,6 @@
       setupMiniWindowEvents(host);
       setupDraggableWindow(host);
       setupLightboxEvents(host);
-      attachManualPageListener();
       startContinuousDOMObserver();
 
     } catch (err) {
@@ -557,6 +576,7 @@
     const mini = host.querySelector("#zf-mini-window");
     const gallery = host.querySelector("#zf-expanded-gallery-overlay");
     const btnClose = host.querySelector("#zf-btn-close-mini");
+    const btnMin = host.querySelector("#zf-btn-min-mini");
     const btnExpand = host.querySelector("#zf-btn-expand-gallery");
     const btnDetach = host.querySelector("#zf-btn-detach-window");
     const btnCloseGallery = host.querySelector("#zf-btn-close-gallery");
@@ -570,10 +590,16 @@
       pill.style.display = "none";
     });
 
-    // Close (✕) -> hides window & shows pill
-    btnClose?.addEventListener("click", () => {
+    // Minimize (_) -> hides window & shows pill
+    btnMin?.addEventListener("click", () => {
       mini.style.display = "none";
       pill.style.display = "flex";
+    });
+
+    // Close (✕) -> closes both window and pill completely (TobyFlow exact behavior)
+    btnClose?.addEventListener("click", () => {
+      mini.style.display = "none";
+      pill.style.display = "none";
     });
 
     // Expand (⤢) -> opens expanded studio gallery
@@ -810,11 +836,11 @@
     renderExpandedGallery();
   }
 
-  // Continuous background DOM Observer that detects ALL rendered images & videos across every tile
+  // Continuous background DOM Observer that updates live progress percentage from active progress nodes
   function startContinuousDOMObserver() {
     if (canvasObserverInterval) clearInterval(canvasObserverInterval);
     canvasObserverInterval = setInterval(() => {
-      // 1. Scan for percentage progress
+      // 1. Scan for percentage progress text from page
       const pctNodes = Array.from(document.querySelectorAll('div, span, p, [role="progressbar"], [aria-busy="true"]'))
         .filter(el => !el.closest("#ziggyflow-floating-hud") && el.offsetParent !== null);
       for (const node of pctNodes) {
@@ -825,130 +851,7 @@
           break;
         }
       }
-
-      // Check if we have active/generating tasks to match
-      const hasActiveTasks = currentBatchTasks.some(t => t.status === "generating" || t.status === "waiting");
-      if (!hasActiveTasks) return;
-
-      // 2. Scan tiles with status 'success'
-      const allTileEls = Array.from(document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [role="gridcell"], div[class*="tile"], div[class*="card"]'));
-      for (const tile of allTileEls) {
-        const tileId = tile.getAttribute("data-tile-id") || tile.getAttribute("data-item-id") || tile.getAttribute("data-node-id") || tile.dataset?.tileId;
-        
-        // Scan video
-        const video = tile.querySelector("video");
-        if (video) {
-          const vSrc = video.currentSrc || video.src;
-          if (vSrc && !processedMediaUrls.has(vSrc) && (video.readyState >= 2 || video.duration > 0 || vSrc.startsWith("blob:") || vSrc.includes(".mp4"))) {
-            console.log("ZIG Flow Mini: Observer detected completed video tile:", vSrc);
-            if (tileId) processedTileIds.add(tileId);
-            onTaskCompleted({
-              provider: "Google Flow",
-              mediaUrl: vSrc,
-              type: "video"
-            });
-          }
-        }
-
-        // Scan image
-        const img = tile.querySelector("img");
-        if (img) {
-          const iSrc = img.currentSrc || img.src;
-          if (iSrc && !processedMediaUrls.has(iSrc) && !iSrc.includes("media.html") && !iSrc.startsWith("data:image/svg") && img.complete && img.naturalWidth > 60) {
-            const isAvatar = iSrc.includes("avatar") || iSrc.includes("profile") || iSrc.includes("icon");
-            if (!isAvatar) {
-              console.log("ZIG Flow Mini: Observer detected completed image tile:", iSrc);
-              if (tileId) processedTileIds.add(tileId);
-              onTaskCompleted({
-                provider: "Google Flow",
-                mediaUrl: iSrc,
-                type: "image"
-              });
-            }
-          }
-        }
-      }
-
-      // 3. Fallback scan for any fresh non-snapshotted media elements on page
-      const freshMedia = Array.from(document.querySelectorAll("video, img")).filter(el => {
-        if (el.closest("#ziggyflow-floating-hud") || el.offsetParent === null) return false;
-        const src = el.currentSrc || el.src;
-        if (!src || processedMediaUrls.has(src) || src.includes("media.html") || src.startsWith("data:image/svg")) return false;
-        const rect = el.getBoundingClientRect();
-        if (rect.width < 70 || rect.height < 50) return false;
-        const s = src.toLowerCase();
-        if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return false;
-        
-        if (el.tagName === "VIDEO") {
-          return el.readyState >= 2 || el.duration > 0 || src.startsWith("blob:") || src.includes(".mp4");
-        }
-        return el.complete && el.naturalWidth > 60;
-      });
-
-      if (freshMedia.length > 0) {
-        const topMedia = freshMedia[0];
-        const mediaSrc = topMedia.currentSrc || topMedia.src;
-        console.log("ZIG Flow Mini: Observer detected fresh non-tile media:", mediaSrc);
-        onTaskCompleted({
-          provider: "Google Flow",
-          mediaUrl: mediaSrc,
-          type: topMedia.tagName === "VIDEO" ? "video" : "image"
-        });
-      }
     }, 750);
-  }
-
-  // Listens to manual on-page submission on Google Flow (Enter key or Submit click)
-  function attachManualPageListener() {
-    let lastSubmitTime = 0;
-
-    const handleSubmission = (promptText) => {
-      const now = Date.now();
-      if (now - lastSubmitTime < 2500) return;
-      lastSubmitTime = now;
-
-      console.log("ZIG Flow Mini: On-Page Manual Generation Detected -> Tracking in HUD:", promptText);
-      onTaskStarted({
-        id: "manual_" + now,
-        prompt: promptText || "Google Flow Generation",
-        provider: "Google Flow",
-        submitMode: "manual",
-        startTime: now,
-        status: "generating"
-      });
-    };
-
-    // 1. Enter key listener on prompt input
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        const target = e.target;
-        if (target && (target.tagName === "TEXTAREA" || target.getAttribute("role") === "textbox" || target.tagName === "INPUT")) {
-          const val = (target.value || target.textContent || "").trim();
-          if (val.length > 0 && !target.closest("#ziggyflow-floating-hud")) {
-            handleSubmission(val);
-          }
-        }
-      }
-    }, true);
-
-    // 2. Click listener on Google Flow Generate button
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest('button, div[role="button"], a[role="button"]');
-      if (btn && !btn.closest("#ziggyflow-floating-hud")) {
-        const rect = btn.getBoundingClientRect();
-        if (rect.top > window.innerHeight * 0.4) {
-          const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
-          const hasSvg = !!btn.querySelector("svg");
-          if (aria.includes("generate") || aria.includes("submit") || aria.includes("send") || hasSvg) {
-            const input = document.querySelector('textarea, div[role="textbox"], input[type="text"]');
-            const val = input ? (input.value || input.textContent || "").trim() : "";
-            if (val.length > 0) {
-              handleSubmission(val);
-            }
-          }
-        }
-      }
-    }, true);
   }
 
   function onQueueFinished() {

@@ -1041,10 +1041,10 @@
 
   /** Gets all unique tile IDs currently on page */
   function getUniqueTileIds() {
-    const tiles = document.querySelectorAll('[data-tile-id]');
+    const tiles = document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [data-card-id], [data-asset-id], [role="gridcell"], [data-testid*="tile"]');
     const ids = new Set();
     tiles.forEach(t => {
-      const id = t.getAttribute("data-tile-id") || t.dataset?.tileId;
+      const id = t.getAttribute("data-tile-id") || t.getAttribute("data-item-id") || t.getAttribute("data-node-id") || t.getAttribute("data-card-id") || t.getAttribute("data-asset-id") || t.dataset?.tileId;
       if (id) ids.add(id);
     });
     return ids;
@@ -1053,10 +1053,14 @@
   /** Gets all image/video src URLs currently on page */
   function getExistingMediaSrcs() {
     const srcs = new Set();
-    document.querySelectorAll('img, video').forEach(el => {
+    document.querySelectorAll('img, video, source').forEach(el => {
       if (isExtensionElement(el)) return;
       const s = el.currentSrc || el.src;
       if (s && !s.startsWith("data:image/svg")) srcs.add(s);
+      const rawSrc = el.getAttribute("src");
+      if (rawSrc) srcs.add(rawSrc);
+      const srcset = el.getAttribute("srcset");
+      if (srcset) srcs.add(srcset);
     });
     return srcs;
   }
@@ -1122,11 +1126,11 @@
     }
   }
 
-  /** ZIG Flow generation tracking with multi-tile detection & snapshot diffing */
+  /** ZIG Flow generation tracking with strict TobyFlow pre-tile exclusion & multi-tile detection */
   async function trackGenerationProgress(maxWaitMs = 240000, preTileIds = new Set(), preMediaSrcs = new Set(), task = {}) {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
-      const minGenerationWaitMs = 3500;
+      const minGenerationWaitMs = 4500; // Never return before 4.5s to prevent grabbing old DOM elements
       const expectedQuantity = Math.max(1, Number(task.quantity) || 1);
       const collectedResults = [];
       const discoveredMediaUrls = new Set();
@@ -1158,12 +1162,18 @@
           chrome.runtime.sendMessage({ action: "LIVE_RENDER_PROGRESS", progress: liveProgress }).catch(() => {});
         }
 
-        // 2. Strict Diffing: Scan for verified NEW or COMPLETED tile elements
+        // 2. Strict Diffing: Scan ONLY newly generated tile elements (STRICTLY EXCLUDING pre-existing ones)
         if (elapsed >= minGenerationWaitMs) {
           const allTiles = Array.from(document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [role="gridcell"], div[class*="tile"], div[class*="card"]'));
           
           for (const tile of allTiles) {
-            const tileId = tile.getAttribute("data-tile-id") || tile.getAttribute("data-item-id") || tile.getAttribute("data-node-id") || tile.dataset?.tileId;
+            const tileId = tile.getAttribute("data-tile-id") || tile.getAttribute("data-item-id") || tile.getAttribute("data-node-id") || tile.getAttribute("data-card-id") || tile.getAttribute("data-asset-id") || tile.dataset?.tileId;
+            
+            // STRICT TOBYFLOW EXCLUSION: If tile was already in the DOM before submission, skip it!
+            if (tileId && preTileIds.has(tileId)) {
+              continue;
+            }
+
             const status = detectTileStatus(tile);
 
             if (status === "success") {
@@ -1181,7 +1191,7 @@
                 };
 
                 collectedResults.push(res);
-                console.log(`ZIG Flow: Captured completed media [${collectedResults.length}/${expectedQuantity}]:`, res);
+                console.log(`ZIG Flow: Captured verified new media [${collectedResults.length}/${expectedQuantity}]:`, res);
 
                 // Broadcast immediate media ready for this tile
                 const itemPayload = {
@@ -1221,11 +1231,12 @@
             }
           }
 
-          // 3. Fallback for non-tile-container views
+          // 3. Fallback scan for fresh media elements (STRICTLY EXCLUDING preMediaSrcs)
           const allFreshMedia = Array.from(document.querySelectorAll('video, img')).filter(el => {
             if (isExtensionElement(el) || el.offsetParent === null) return false;
             const src = el.currentSrc || el.src;
-            if (!src || preMediaSrcs.has(src) || discoveredMediaUrls.has(src) || src.includes("media.html") || src.startsWith("data:image/svg")) return false;
+            const rawSrc = el.getAttribute("src");
+            if (!src || preMediaSrcs.has(src) || (rawSrc && preMediaSrcs.has(rawSrc)) || discoveredMediaUrls.has(src) || src.includes("media.html") || src.startsWith("data:image/svg")) return false;
             const rect = el.getBoundingClientRect();
             if (rect.width < 70 || rect.height < 50) return false;
             const s = src.toLowerCase();
@@ -1278,7 +1289,7 @@
           }
 
           // If at least 1 image was collected and we waited past threshold, resolve with what we have
-          if (collectedResults.length > 0 && elapsed > 8000) {
+          if (collectedResults.length > 0 && elapsed > 10000) {
             isResolved = true;
             clearInterval(timer);
             resolve(collectedResults[0]);
@@ -2519,4 +2530,76 @@
   }
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  /** Setup TobyFlow-grade on-page manual generation detector */
+  function setupManualGenerationDetector() {
+    let lastSubmitTime = 0;
+    let isTrackingManual = false;
+
+    const handleManualSubmit = async (promptText) => {
+      const now = Date.now();
+      if (now - lastSubmitTime < 3000 || isTrackingManual) return;
+      lastSubmitTime = now;
+      isTrackingManual = true;
+
+      console.log("ZIG Flow: Manual generation detected on page. Taking exclusion snapshot...");
+      const preTileIds = getUniqueTileIds();
+      const preMediaSrcs = getExistingMediaSrcs();
+
+      const manualTask = {
+        id: "manual_" + now,
+        prompt: promptText || "Google Flow Generation",
+        provider: "Google Flow",
+        submitMode: "manual",
+        startTime: now,
+        status: "generating"
+      };
+
+      try {
+        window.dispatchEvent(new CustomEvent("ZF_TASK_STARTED", { detail: manualTask }));
+        if (typeof window.__zf_onTaskStarted === "function") window.__zf_onTaskStarted(manualTask);
+      } catch(e) {}
+
+      try {
+        await trackGenerationProgress(240000, preTileIds, preMediaSrcs, manualTask);
+      } catch (err) {
+        console.warn("ZIG Flow: Manual generation tracking notice:", err.message);
+      } finally {
+        isTrackingManual = false;
+      }
+    };
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        const target = e.target;
+        if (target && (target.tagName === "TEXTAREA" || target.getAttribute("role") === "textbox" || target.tagName === "INPUT")) {
+          const val = (target.value || target.textContent || "").trim();
+          if (val.length > 0 && !target.closest("#ziggyflow-floating-hud")) {
+            handleManualSubmit(val);
+          }
+        }
+      }
+    }, true);
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('button, div[role="button"], a[role="button"]');
+      if (btn && !btn.closest("#ziggyflow-floating-hud")) {
+        const rect = btn.getBoundingClientRect();
+        if (rect.top > window.innerHeight * 0.35) {
+          const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
+          const hasSvg = !!btn.querySelector("svg");
+          if (aria.includes("generate") || aria.includes("submit") || aria.includes("send") || hasSvg) {
+            const input = document.querySelector('textarea, div[role="textbox"], input[type="text"]');
+            const val = input ? (input.value || input.textContent || "").trim() : "";
+            if (val.length > 0) {
+              handleManualSubmit(val);
+            }
+          }
+        }
+      }
+    }, true);
+  }
+
+  // Initialize manual generation detector
+  setupManualGenerationDetector();
 })();
