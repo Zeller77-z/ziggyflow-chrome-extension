@@ -734,9 +734,16 @@
     const livePct = document.getElementById("zf-live-render-pct");
     if (livePct) livePct.innerText = "1%";
 
-    if (!batchStartTime) {
-      batchStartTime = Date.now();
+    // ── CRITICAL FIX: Clear stale tasks from previous generation sessions ──
+    // If all existing tasks are in terminal states (done/failed), this is a NEW
+    // generation session — clear the old batch so they don't show up alongside the new one.
+    const allTerminal = currentBatchTasks.length === 0 || currentBatchTasks.every(t => t.status === "done" || t.status === "failed");
+    if (allTerminal && currentBatchTasks.length > 0) {
+      console.log("ZIG Flow Mini: Clearing", currentBatchTasks.length, "completed tasks from previous session");
+      currentBatchTasks = [];
     }
+
+    batchStartTime = Date.now();
 
     task.id = task.id || ("gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6));
 

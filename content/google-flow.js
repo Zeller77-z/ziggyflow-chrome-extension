@@ -1135,12 +1135,9 @@
       const tileStateMap = new Map(); // Map<element, { firstSeenAt, everSeenProcessing, lastStatus }>
       let isResolved = false;
       let lastReportedProgress = "";
-      let pendingCheck = false;
-      let mutationObserver = null;
 
       const cleanup = () => {
         isResolved = true;
-        if (mutationObserver) { try { mutationObserver.disconnect(); } catch(e) {} mutationObserver = null; }
         if (pollTimer) clearInterval(pollTimer);
       };
 
@@ -1310,32 +1307,16 @@
         }
       };
 
-      // MutationObserver + Polling hybrid (TobyFlow pattern):
-      // Observer sets pendingCheck flag on DOM changes, polling loop does heavy work
-      try {
-        mutationObserver = new MutationObserver(() => { pendingCheck = true; });
-        mutationObserver.observe(document.body, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ["class", "src", "data-tile-id"]
-        });
-      } catch(e) {
-        console.warn("ZIG Flow: MutationObserver setup failed, falling back to polling only");
-      }
-
+      // Simple polling approach — MutationObserver on document.body with subtree:true
+      // causes severe lag on Google Flow's complex SPA. 600ms polling is lightweight and sufficient.
       const pollTimer = setInterval(() => {
         if (isTaskAborted) {
           cleanup();
           reject(new Error("Generation stopped by user"));
           return;
         }
-        // Only run heavy check if DOM changed or enough time passed for progress scan
-        if (pendingCheck || (Date.now() - startTime) % 2000 < 350) {
-          pendingCheck = false;
-          check();
-        }
-      }, 300);
+        check();
+      }, 600);
 
       // First check after minimum wait
       setTimeout(check, minGenerationWaitMs);
