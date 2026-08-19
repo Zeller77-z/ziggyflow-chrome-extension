@@ -329,7 +329,7 @@ class BackgroundController {
     }
 
     await this.injectScriptIfNeeded(tab.id, scriptFile);
-    await this.injectScriptIfNeeded(tab.id, "content/injected-overlay.js");
+    await this.injectScriptIfNeeded(tab.id, "content/floating-tracker-flow.js");
 
     this.log(`[CONNECT] Successfully injected & connected driver to ${provider} on Tab #${tab.id}!`);
     return { success: true, provider, tabId: tab.id, title: tab.title };
@@ -543,7 +543,7 @@ class BackgroundController {
     // Ensure content script is injected into the target tab
     const scriptFile = scriptMap[provider] || "content/google-flow.js";
     await this.injectScriptIfNeeded(tab.id, scriptFile);
-    await this.injectScriptIfNeeded(tab.id, "content/injected-overlay.js");
+    await this.injectScriptIfNeeded(tab.id, "content/floating-tracker-flow.js");
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
