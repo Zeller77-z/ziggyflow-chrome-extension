@@ -72,9 +72,13 @@
           @keyframes zfSpin {
             100% { transform: rotate(360deg); }
           }
+          @keyframes zfPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
           .zf-icon-btn {
-            background: #23252b;
-            border: 1px solid #33363f;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
             color: #9ca3af;
             border-radius: 5px;
             padding: 3px 6px;
@@ -86,38 +90,56 @@
             transition: all 0.15s ease;
           }
           .zf-icon-btn:hover {
-            background: #2c3038;
+            background: rgba(255,255,255,0.18);
             color: #ffffff;
-            border-color: #4b5563;
+            border-color: rgba(255,255,255,0.25);
           }
           .zf-icon-btn-lime {
-            background: #202619;
-            border: 1px solid #384523;
-            color: #a3e635;
+            background: rgba(204,255,0,0.14);
+            border: 1px solid rgba(204,255,0,0.3);
+            color: #ccff00;
           }
           .zf-icon-btn-lime:hover {
-            background: #28321e;
-            color: #bef264;
-            border-color: #a3e635;
+            background: rgba(204,255,0,0.25);
+            color: #e2ff66;
+            border-color: #ccff00;
           }
           .zf-icon-btn-danger {
-            background: #27181c;
-            border: 1px solid #4d252a;
-            color: #ef4444;
+            background: rgba(239,68,68,0.16);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #f87171;
           }
           .zf-icon-btn-danger:hover {
-            background: #3b1c22;
-            color: #f87171;
+            background: rgba(239,68,68,0.28);
+            color: #fca5a5;
             border-color: #ef4444;
           }
           .zf-meta-tag {
-            background: #181a1f;
-            border: 1px solid #2a2d36;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
             color: #94a3b8;
             font-size: 10px;
             font-weight: 600;
             padding: 1px 5px;
             border-radius: 3px;
+          }
+          .zf-pulse {
+            animation: zfPulse 1.5s ease-in-out infinite;
+          }
+          .zf-ft-thumb-view {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.55);
+            opacity: 0;
+            transition: opacity 0.15s;
+            cursor: pointer;
+            border-radius: 6px;
+          }
+          .zf-ft-thumb:hover .zf-ft-thumb-view {
+            opacity: 1;
           }
         </style>
 
@@ -127,24 +149,25 @@
           position: fixed;
           bottom: 24px;
           right: 380px;
-          background: #141518;
+          background: linear-gradient(180deg, rgba(18,22,30,0.92), rgba(4,7,12,0.96));
           color: #ffffff;
-          border: 1.5px solid #a3e635;
-          padding: 5px 12px;
+          border: 1.5px solid #ccff00;
+          padding: 6px 14px;
           border-radius: 9999px;
-          box-shadow: 0 8px 25px rgba(0,0,0,0.7), 0 0 16px rgba(163,230,53,0.4);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 18px rgba(204,255,0,0.4);
           cursor: pointer;
           display: none;
           align-items: center;
-          gap: 6px;
+          gap: 7px;
           font-size: 11.5px;
           font-weight: 700;
           transition: all 0.2s ease;
           letter-spacing: 0.2px;
+          backdrop-filter: blur(16px);
         ">
-          <span style="font-size:12px;color:#a3e635;">✦</span>
+          <span style="font-size:12px;color:#ccff00;">✦</span>
           <span>TobyFlow</span>
-          <span id="zf-pill-status" style="background:#a3e635;color:#121316;padding:1px 5px;border-radius:6px;font-size:9.5px;font-weight:800;">Open</span>
+          <span id="zf-pill-status" style="background:#ccff00;color:#121316;padding:1px 6px;border-radius:6px;font-size:9.5px;font-weight:800;">Open</span>
         </div>
 
         <!-- Exact TobyFlow Mini HUD Window (Matching Screenshot 1 & 2) -->
@@ -155,10 +178,12 @@
           ${posStyle}
           width: 320px;
           max-width: calc(100vw - 32px);
-          background: #121316;
-          border: 1.5px solid #282a32;
+          background: linear-gradient(180deg, rgba(18,22,30,0.88), rgba(4,7,12,0.95)), linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+          border: 1px solid rgba(239,246,255,0.22);
           border-radius: 16px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.95), 0 0 25px rgba(0,0,0,0.6);
+          box-shadow: 0 26px 60px rgba(0,0,0,0.9), 0 10px 25px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+          backdrop-filter: blur(20px) saturate(1.2);
+          -webkit-backdrop-filter: blur(20px) saturate(1.2);
           overflow: hidden;
           flex-direction: column;
           z-index: 2147483645;
@@ -166,89 +191,59 @@
         ">
           <!-- 1. Header Bar (Matching Image 1) -->
           <div id="zf-drag-header" style="
-            background: #18191e;
-            padding: 7px 10px;
+            background: rgba(255,255,255,0.03);
+            padding: 8px 11px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             cursor: grab;
             user-select: none;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
           " title="Drag to move">
             <div style="display:flex;align-items:center;gap:6px;">
               <!-- Glowing Lime Star Icon -->
               <div style="
-                width: 19px;
-                height: 19px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #bef264 0%, #84cc16 100%);
+                width: 20px;
+                height: 20px;
+                border-radius: 6px;
+                background: rgba(204,255,0,0.15);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                box-shadow: 0 0 8px rgba(190,242,100,0.5);
+                border: 1px solid rgba(204,255,0,0.3);
               ">
-                <span style="color:#121316;font-size:11px;font-weight:900;">✦</span>
+                <span style="color:#ccff00;font-size:11px;font-weight:900;">✦</span>
               </div>
               <span style="font-weight:800;font-size:12.5px;color:#ffffff;letter-spacing:0.2px;">TobyFlow</span>
-              <button id="zf-btn-expand-gallery" style="
-                background: #22252e;
-                border: 1px solid #374151;
-                border-radius: 5px;
-                padding: 1px 4px;
-                font-size: 10px;
-                color: #cbd5e1;
-                cursor: pointer;
-                line-height: 1;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-              " title="Expand Gallery">⤢</button>
+              <button id="zf-btn-expand-gallery" class="zf-icon-btn" style="padding: 1px 5px; font-size: 10px;" title="Expand Results Grid">⤢</button>
             </div>
 
             <div style="display:flex;align-items:center;gap:5px;">
               <span id="zf-mini-header-progress" style="font-size:11px;font-weight:600;color:#cbd5e1;">0/0 done</span>
-              <button id="zf-btn-download-all" style="
-                background: #202619;
-                border: 1px solid #384523;
-                color: #a3e635;
-                border-radius: 5px;
-                padding: 2px 6px;
-                font-size: 11px;
-                cursor: pointer;
-                font-weight: 700;
-                display: flex;
-                align-items: center;
-              " title="Download all completed">⬇</button>
-              <button id="zf-btn-close-mini" style="
-                background: #1e2026;
-                border: 1px solid #374151;
-                color: #94a3b8;
-                border-radius: 5px;
-                padding: 2px 6px;
-                font-size: 11px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-              " title="Close">✕</button>
+              <button id="zf-btn-download-all" class="zf-icon-btn zf-icon-btn-lime" style="padding: 2px 6px; font-size: 11px;" title="Download all completed">⬇</button>
+              <button id="zf-btn-close-mini" class="zf-icon-btn" style="padding: 2px 6px; font-size: 11px;" title="Close">✕</button>
             </div>
           </div>
 
-          <!-- 2. Solid Lime Divider Line -->
-          <div style="height: 2px; width: 100%; background: #a3e635;"></div>
+          <!-- 2. Lime Gradient Progress Fill Bar -->
+          <div style="height: 3px; width: 100%; background: rgba(255,255,255,0.06); overflow: hidden;">
+            <div id="zf-progress-fill" style="height: 100%; width: 100%; background: linear-gradient(90deg, #a3e635, #ccff00, #e2ff66); transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease-out;"></div>
+          </div>
 
           <!-- 3. Status Bar (Matching Image 1) -->
           <div style="
-            background: #141519;
+            background: rgba(0,0,0,0.25);
             padding: 6px 10px;
             display: flex;
             align-items: center;
             justify-content: space-between;
           ">
             <div style="display:flex;align-items:center;gap:6px;">
-              <span style="color:#38bdf8;font-size:9px;">●</span>
+              <span id="zf-active-status-dot" style="color:#38bdf8;font-size:9px;">●</span>
               <span id="zf-active-status-text" style="font-size:11.5px;font-weight:700;color:#ffffff;">Auto Gen</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
-              <span style="background:#1e2026;border:1px solid #374151;color:#94a3b8;font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:700;">WEB</span>
+              <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#94a3b8;font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:700;">WEB</span>
               <span id="zf-badge-status-pill" style="background:#064e3b;color:#34d399;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;">Done</span>
               <span id="zf-live-render-time" style="font-size:11px;color:#94a3b8;font-family:monospace;">00:00</span>
               <span id="zf-live-render-pct" style="font-size:11px;font-weight:700;color:#e2e8f0;">100%</span>
@@ -256,45 +251,71 @@
             </div>
           </div>
 
-          <!-- 4. Thin Blue Divider Line -->
-          <div style="height: 1px; width: 100%; background: #2563eb; opacity: 0.6;"></div>
+          <!-- 4. Live Generation Pipeline Status Line (Matching TobyFlow) -->
+          <div id="zf-pipeline-row" style="
+            padding: 4px 10px;
+            font-size: 10.5px;
+            color: rgba(255,255,255,0.7);
+            background: rgba(255,255,255,0.02);
+            border-top: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(37,99,235,0.4);
+            font-variant-numeric: tabular-nums;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          ">
+            <span id="zf-stat-sent" style="color:#93c5fd;">▶ 0 sent</span>
+            <span style="opacity:0.3;">•</span>
+            <span id="zf-stat-generating" style="color:#c084fc;">⚡ 0 gen</span>
+            <span style="opacity:0.3;">•</span>
+            <span id="zf-stat-waiting" style="color:#fbbf24;">⏸ 0 wait</span>
+            <span style="opacity:0.3;">•</span>
+            <span id="zf-stat-done" style="color:#4ade80;">✓ 0 done</span>
+            <span style="opacity:0.3;">•</span>
+            <span id="zf-stat-failed" style="color:#f87171;">✕ 0 fail</span>
+          </div>
 
           <!-- 5. Live Task Items List (Matching Image 1) -->
           <div id="zf-mini-task-list" style="
-            max-height: 130px;
+            max-height: 150px;
             overflow-y: auto;
             padding: 6px 8px;
             display: flex;
             flex-direction: column;
             gap: 5px;
-            background: #111215;
+            background: rgba(10,12,16,0.85);
           ">
             <div style="color:#64748b;font-size:11px;text-align:center;padding:10px 0;">✨ Ready. Waiting for generation...</div>
           </div>
         </div>
 
-        <!-- 5. EXPANDED STUDIO GALLERY OVERLAY (Matching Screenshot 2) -->
+        <!-- 6. EXPANDED STUDIO GALLERY OVERLAY (Matching Screenshot 2) -->
         <div id="zf-expanded-gallery-overlay" style="
           pointer-events: auto;
           display: none;
           position: fixed;
           top: 24px;
           left: 24px;
-          width: 400px;
+          width: 420px;
           max-width: calc(100vw - 48px);
           max-height: calc(100vh - 48px);
-          background: #141519;
-          border: 1.5px solid #2a2d36;
+          background: linear-gradient(180deg, rgba(18,22,30,0.95), rgba(4,7,12,0.98));
+          border: 1px solid rgba(255,255,255,0.15);
           border-radius: 16px;
           box-shadow: 0 30px 90px rgba(0,0,0,0.95), 0 0 30px rgba(0,0,0,0.8);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
           overflow: hidden;
           flex-direction: column;
           z-index: 2147483646;
         ">
           <!-- Expanded Header -->
           <div style="
-            background: #18191e;
-            border-bottom: 1px solid #24262e;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
             padding: 10px 14px;
             display: flex;
             align-items: center;
@@ -302,15 +323,16 @@
           ">
             <div style="display:flex;align-items:center;gap:6px;">
               <div style="
-                width: 18px;
-                height: 18px;
-                border-radius: 50%;
-                background: #bef264;
+                width: 20px;
+                height: 20px;
+                border-radius: 6px;
+                background: rgba(204,255,0,0.15);
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                border: 1px solid rgba(204,255,0,0.3);
               ">
-                <span style="color:#121316;font-size:11px;font-weight:900;">✦</span>
+                <span style="color:#ccff00;font-size:11px;font-weight:900;">✦</span>
               </div>
               <span style="font-weight:800;font-size:13px;color:#ffffff;">TobyFlow</span>
               <span style="color:#94a3af;font-size:11.5px;">Results</span>
@@ -319,10 +341,10 @@
 
             <div style="display:flex;align-items:center;gap:6px;">
               <button id="zf-btn-gallery-dl-all" style="
-                background: #bef264;
+                background: #ccff00;
                 color: #121316;
                 border: none;
-                border-radius: 5px;
+                border-radius: 6px;
                 padding: 5px 12px;
                 font-size: 11px;
                 font-weight: 800;
@@ -330,7 +352,7 @@
                 display: flex;
                 align-items: center;
                 gap: 4px;
-                box-shadow: 0 4px 12px rgba(190, 242, 100, 0.35);
+                box-shadow: 0 4px 12px rgba(204, 255, 0, 0.35);
               ">
                 <span>⬇</span> Download all
               </button>
@@ -350,6 +372,107 @@
             <!-- Populated with result cards -->
           </div>
         </div>
+
+        <!-- 7. FULLSCREEN 4K LIGHTBOX MEDIA VIEWER (Matching TobyFlow _openViewOverlay) -->
+        <div id="zf-lightbox-overlay" style="
+          position: fixed;
+          inset: 0;
+          z-index: 2147483647;
+          display: none;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0,0,0,0.88);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          pointer-events: auto;
+        ">
+          <button id="zf-lightbox-close" style="
+            position: fixed;
+            top: 20px;
+            right: 24px;
+            width: 38px;
+            height: 38px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.14);
+            color: #fff;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+          ">✕</button>
+
+          <button id="zf-lightbox-prev" style="
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.14);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+          ">❮</button>
+
+          <button id="zf-lightbox-next" style="
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.14);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+          ">❯</button>
+
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 92vw; max-height: 92vh;">
+            <div id="zf-lightbox-media" style="max-width: 92vw; max-height: 80vh; display: flex; align-items: center; justify-content: center;"></div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button id="zf-lightbox-dl-clean" style="
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 8px;
+                background: #ccff00;
+                color: #121316;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 700;
+                box-shadow: 0 4px 14px rgba(204,255,0,0.4);
+              ">⬇ Download 4K</button>
+              <button id="zf-lightbox-dl-orig" style="
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 16px;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 8px;
+                background: rgba(255,255,255,0.1);
+                color: #fff;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 600;
+              ">Download Original</button>
+            </div>
+          </div>
+        </div>
       `;
 
       if (document.body) {
@@ -360,6 +483,7 @@
 
       setupMiniWindowEvents(host);
       setupDraggableWindow(host);
+      setupLightboxEvents(host);
       attachManualPageListener();
 
     } catch (err) {
@@ -784,6 +908,109 @@
     renderExpandedGallery();
   }
 
+  // =============================================
+  // 3.5 LIGHTBOX MEDIA VIEWER CONTROLLER (TobyFlow Pattern)
+  // =============================================
+  let activeLightboxIndex = 0;
+  let activeLightboxItems = [];
+
+  function setupLightboxEvents(host) {
+    const lightbox = host.querySelector("#zf-lightbox-overlay");
+    const closeBtn = host.querySelector("#zf-lightbox-close");
+    const prevBtn = host.querySelector("#zf-lightbox-prev");
+    const nextBtn = host.querySelector("#zf-lightbox-next");
+    const dlCleanBtn = host.querySelector("#zf-lightbox-dl-clean");
+    const dlOrigBtn = host.querySelector("#zf-lightbox-dl-orig");
+
+    const closeLightbox = () => {
+      if (lightbox) lightbox.style.display = "none";
+    };
+
+    closeBtn?.addEventListener("click", closeLightbox);
+
+    lightbox?.addEventListener("click", (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+
+    prevBtn?.addEventListener("click", () => {
+      if (activeLightboxIndex > 0) {
+        activeLightboxIndex--;
+        renderLightboxItem();
+      }
+    });
+
+    nextBtn?.addEventListener("click", () => {
+      if (activeLightboxIndex < activeLightboxItems.length - 1) {
+        activeLightboxIndex++;
+        renderLightboxItem();
+      }
+    });
+
+    dlCleanBtn?.addEventListener("click", () => {
+      const item = activeLightboxItems[activeLightboxIndex];
+      if (item && item.mediaUrl) {
+        chrome.runtime.sendMessage({
+          action: "TRIGGER_DOWNLOAD",
+          payload: { url: item.mediaUrl, prompt: item.prompt, provider: "Google Flow", resolution: "4K", removeWatermark: true }
+        });
+      }
+    });
+
+    dlOrigBtn?.addEventListener("click", () => {
+      const item = activeLightboxItems[activeLightboxIndex];
+      if (item && item.mediaUrl) {
+        chrome.runtime.sendMessage({
+          action: "TRIGGER_DOWNLOAD",
+          payload: { url: item.mediaUrl, prompt: item.prompt, provider: "Google Flow", resolution: "Original", removeWatermark: false }
+        });
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (lightbox && lightbox.style.display === "flex") {
+        if (e.key === "Escape") closeLightbox();
+        else if (e.key === "ArrowLeft" && activeLightboxIndex > 0) {
+          activeLightboxIndex--;
+          renderLightboxItem();
+        } else if (e.key === "ArrowRight" && activeLightboxIndex < activeLightboxItems.length - 1) {
+          activeLightboxIndex++;
+          renderLightboxItem();
+        }
+      }
+    });
+  }
+
+  function openLightboxViewer(items, startIdx = 0) {
+    const lightbox = document.getElementById("zf-lightbox-overlay");
+    if (!lightbox || !items || items.length === 0) return;
+
+    activeLightboxItems = items;
+    activeLightboxIndex = Math.max(0, Math.min(startIdx, items.length - 1));
+
+    renderLightboxItem();
+    lightbox.style.display = "flex";
+  }
+
+  function renderLightboxItem() {
+    const mediaContainer = document.getElementById("zf-lightbox-media");
+    const prevBtn = document.getElementById("zf-lightbox-prev");
+    const nextBtn = document.getElementById("zf-lightbox-next");
+    if (!mediaContainer) return;
+
+    const cur = activeLightboxItems[activeLightboxIndex];
+    if (!cur || !cur.mediaUrl) return;
+
+    const isVideo = cur.type === "video" || cur.mediaUrl.endsWith(".mp4") || cur.mediaUrl.includes("video");
+    if (isVideo) {
+      mediaContainer.innerHTML = `<video src="${cur.mediaUrl}" controls autoplay playsinline loop style="max-width:90vw;max-height:78vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.8);"></video>`;
+    } else {
+      mediaContainer.innerHTML = `<img src="${cur.mediaUrl}" style="max-width:90vw;max-height:78vh;border-radius:12px;object-fit:contain;box-shadow:0 20px 60px rgba(0,0,0,0.8);" />`;
+    }
+
+    if (prevBtn) prevBtn.style.visibility = activeLightboxIndex > 0 ? "visible" : "hidden";
+    if (nextBtn) nextBtn.style.visibility = activeLightboxIndex < activeLightboxItems.length - 1 ? "visible" : "hidden";
+  }
+
   function updateMiniSummary() {
     const total = currentBatchTasks.length;
     const done = currentBatchTasks.filter(t => t.status === "done").length;
@@ -796,12 +1023,18 @@
     const statWait = document.getElementById("zf-stat-waiting");
     const statDone = document.getElementById("zf-stat-done");
     const statFailed = document.getElementById("zf-stat-failed");
+    const progFill = document.getElementById("zf-progress-fill");
 
     if (statSent) statSent.innerText = `▶ ${total} sent`;
-    if (statGen) statGen.innerText = `${generating} gen`;
-    if (statWait) statWait.innerText = `${waiting} wait`;
-    if (statDone) statDone.innerText = `${done} done`;
-    if (statFailed) statFailed.innerText = `${failed} fail`;
+    if (statGen) statGen.innerText = `⚡ ${generating} gen`;
+    if (statWait) statWait.innerText = `⏸ ${waiting} wait`;
+    if (statDone) statDone.innerText = `✓ ${done} done`;
+    if (statFailed) statFailed.innerText = `✕ ${failed} fail`;
+
+    if (progFill) {
+      const pct = total > 0 ? (done / total) : 0;
+      progFill.style.transform = `scaleX(${pct})`;
+    }
 
     const headerProg = document.getElementById("zf-mini-header-progress");
     if (headerProg) {
@@ -825,6 +1058,8 @@
 
     list.innerHTML = "";
 
+    const allDoneTasks = currentBatchTasks.filter(t => t.status === "done" && t.mediaUrl);
+
     currentBatchTasks.forEach((t, idx) => {
       const isDone = t.status === "done";
       const isGen = t.status === "generating";
@@ -832,24 +1067,25 @@
 
       const row = document.createElement("div");
       row.style.cssText = `
-        background: #18191e;
-        border: 1px solid ${isDone ? "#252832" : (isGen ? "#1e3a5f" : (isFail ? "#4d1e24" : "#24262e"))};
+        background: rgba(24,25,30,0.85);
+        border: 1px solid ${isDone ? "rgba(74,222,128,0.25)" : (isGen ? "rgba(96,165,250,0.4)" : (isFail ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)"))};
         border-radius: 8px;
-        padding: 6px 8px;
+        padding: 5px 8px;
         display: flex;
         align-items: center;
         gap: 8px;
         transition: all 0.15s ease;
       `;
 
-      // 1. Thumbnail Image or Placeholder (38px square)
+      // 1. Thumbnail Image or Placeholder (40px square)
       const thumb = document.createElement("div");
+      thumb.className = "zf-ft-thumb";
       thumb.style.cssText = `
-        width: 38px;
-        height: 38px;
+        width: 40px;
+        height: 40px;
         border-radius: 6px;
-        background: #0e0f12;
-        border: 1px solid #2d3039;
+        background: rgba(0,0,0,0.5);
+        border: 1px solid rgba(255,255,255,0.1);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -860,12 +1096,31 @@
       `;
 
       if (t.mediaUrl) {
-        thumb.innerHTML = `<img src="${t.mediaUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
+        thumb.innerHTML = `
+          <img src="${t.mediaUrl}" style="width:100%;height:100%;object-fit:cover;" />
+          <div class="zf-ft-thumb-view" title="View in 4K Lightbox">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+        `;
         thumb.addEventListener("click", () => {
-          window.open(t.mediaUrl, "_blank");
+          const startIdx = allDoneTasks.findIndex(item => item.mediaUrl === t.mediaUrl);
+          openLightboxViewer(allDoneTasks.length ? allDoneTasks : [t], Math.max(0, startIdx));
         });
       } else if (isGen) {
-        thumb.innerHTML = `<span style="font-size:14px;animation:zfSpin 1s linear infinite;">⏳</span>`;
+        thumb.innerHTML = `
+          <span style="
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(255,255,255,0.15);
+            border-top-color: #ccff00;
+            border-radius: 50%;
+            animation: zfSpin 0.85s linear infinite;
+            display: block;
+          "></span>
+        `;
       } else if (isFail) {
         thumb.innerHTML = `<span style="font-size:12px;color:#ef4444;font-weight:700;">✕</span>`;
       } else {
@@ -897,14 +1152,14 @@
           #${idx + 1} ${promptTruncated}
         </div>
         <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
-          <span style="font-size:10px;color:#94a3b8;">${elapsedStr}</span>
+          <span style="font-size:10px;color:#94a3b8;font-family:monospace;">${elapsedStr}</span>
           <span style="
             font-size:9.5px;
             font-weight:700;
             padding:1px 5px;
             border-radius:3px;
-            background:${isDone ? "#064e3b" : (isGen ? "#1e3a8a" : (isFail ? "#450a0a" : "#27272a"))};
-            color:${isDone ? "#34d399" : (isGen ? "#60a5fa" : (isFail ? "#f87171" : "#a1a1aa"))};
+            background:${isDone ? "rgba(34,197,94,0.2)" : (isGen ? "rgba(59,130,246,0.2)" : (isFail ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.08)"))};
+            color:${isDone ? "#4ade80" : (isGen ? "#60a5fa" : (isFail ? "#f87171" : "#a1a1aa"))};
           ">${isDone ? "Done" : (isGen ? "Generating" : (isFail ? "Failed" : "Waiting"))}</span>
         </div>
       `;
