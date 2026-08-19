@@ -896,14 +896,13 @@
     if (isTaskAborted) throw new Error("Task was aborted");
     showLiveToast(`⚡ ZiggyFlow: Automating Flow generation...`);
 
-    // Reset and notify overlay mini-window of the active task
+    // Flag to prevent setupManualGenerationDetector from self-triggering on synthetic events
+    window.__zf_automated_task_active = true;
+
+    // Notify overlay mini-window of the active task (HUD visibility is handled by onTaskStarted in overlay)
     try {
       window.dispatchEvent(new CustomEvent("ZF_TASK_STARTED", { detail: task }));
       if (typeof window.__zf_onTaskStarted === "function") window.__zf_onTaskStarted(task);
-      const mini = document.getElementById("zf-mini-window");
-      const pill = document.getElementById("zf-pill-btn");
-      if (mini) mini.style.display = "flex";
-      if (pill) pill.style.display = "none";
     } catch(e) {}
 
     // 0. Snapshot existing tiles & media BEFORE submitting to prevent grabbing stale images
@@ -1003,27 +1002,15 @@
       console.log("ZiggyFlow: Auto-Submit completed via TobyFlow multi-tier bypass.");
     }
 
-    // 5. Track live generation smoothly with TobyFlow-Grade tile diffing monitor
-    const mediaResult = await trackGenerationProgress(240000, preTileIds, preMediaSrcs, task);
-    
-    const mediaPayload = {
-      provider: window.location.hostname.includes("gemini.google.com") ? "Google Gemini" : "Google Flow",
-      prompt: task.prompt,
-      mediaUrl: mediaResult.url,
-      type: mediaResult.type,
-      duration: task.duration,
-      aspectRatio: task.aspectRatio
-    };
-
+    // 5. Track live generation — trackGenerationProgress is the SINGLE source of truth
+    // for dispatching ZF_MEDIA_READY and MEDIA_GENERATED_NOTIFICATION.
+    // DO NOT dispatch again here — that causes duplicate auto-downloads.
+    let mediaResult;
     try {
-      window.dispatchEvent(new CustomEvent("ZF_MEDIA_READY", { detail: mediaPayload }));
-      if (typeof window.__zf_onTaskCompleted === "function") window.__zf_onTaskCompleted(mediaPayload);
-    } catch(e) {}
-
-    chrome.runtime.sendMessage({
-      action: "MEDIA_GENERATED_NOTIFICATION",
-      payload: mediaPayload
-    });
+      mediaResult = await trackGenerationProgress(240000, preTileIds, preMediaSrcs, task);
+    } finally {
+      window.__zf_automated_task_active = false;
+    }
 
     return mediaResult;
   }
@@ -1039,22 +1026,27 @@
     } catch (e) {}
   }
 
-  /** Gets all unique tile IDs currently on page */
+  /** Gets all unique tile IDs currently on page AND stamps every tile element with data-zf-baseline="1"
+   *  so the tracking engine can unconditionally skip them even if they lack string IDs. */
   function getUniqueTileIds() {
     const tiles = document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [data-card-id], [data-asset-id], [role="gridcell"], [data-testid*="tile"]');
     const ids = new Set();
     tiles.forEach(t => {
+      // Stamp element so trackGenerationProgress can skip it without relying on string ID
+      t.setAttribute("data-zf-baseline", "1");
       const id = t.getAttribute("data-tile-id") || t.getAttribute("data-item-id") || t.getAttribute("data-node-id") || t.getAttribute("data-card-id") || t.getAttribute("data-asset-id") || t.dataset?.tileId;
       if (id) ids.add(id);
     });
     return ids;
   }
 
-  /** Gets all image/video src URLs currently on page */
+  /** Gets all image/video src URLs currently on page AND stamps every media element with data-zf-baseline-media="1" */
   function getExistingMediaSrcs() {
     const srcs = new Set();
     document.querySelectorAll('img, video, source').forEach(el => {
       if (isExtensionElement(el)) return;
+      // Stamp element for element-level exclusion
+      el.setAttribute("data-zf-baseline-media", "1");
       const s = el.currentSrc || el.src;
       if (s && !s.startsWith("data:image/svg")) srcs.add(s);
       const rawSrc = el.getAttribute("src");
@@ -1126,22 +1118,37 @@
     }
   }
 
-  /** ZIG Flow generation tracking with strict TobyFlow pre-tile exclusion & multi-tile detection */
+  /** ZIG Flow generation tracking — TobyFlow-grade architecture:
+   *  1. Element-level stamping (data-zf-baseline) — unconditionally skip pre-existing tiles
+   *  2. Tile state transition tracking — only accept tiles observed "processing" → "success"
+   *  3. Lazy-load grace detection — instant-success tiles within grace window are old
+   *  4. MutationObserver + polling hybrid — observer sets pendingCheck, poll does heavy work
+   *  5. NO fallback scanner — never blindly grab the first available image */
   async function trackGenerationProgress(maxWaitMs = 240000, preTileIds = new Set(), preMediaSrcs = new Set(), task = {}) {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
-      const minGenerationWaitMs = 4500; // Never return before 4.5s to prevent grabbing old DOM elements
+      const minGenerationWaitMs = 6000; // 6s minimum — never analyze tiles before this
+      const lazyLoadGraceMs = 15000; // Tiles appearing as instant "success" within 15s are lazy-loaded old tiles
       const expectedQuantity = Math.max(1, Number(task.quantity) || 1);
       const collectedResults = [];
       const discoveredMediaUrls = new Set();
+      const tileStateMap = new Map(); // Map<element, { firstSeenAt, everSeenProcessing, lastStatus }>
       let isResolved = false;
       let lastReportedProgress = "";
+      let pendingCheck = false;
+      let mutationObserver = null;
+
+      const cleanup = () => {
+        isResolved = true;
+        if (mutationObserver) { try { mutationObserver.disconnect(); } catch(e) {} mutationObserver = null; }
+        if (pollTimer) clearInterval(pollTimer);
+      };
 
       const check = () => {
         if (isResolved) return;
         const elapsed = Date.now() - startTime;
 
-        // 1. Throttled lightweight progress percentage query from DOM
+        // 1. Lightweight progress percentage query from DOM
         let liveProgress = null;
         const progressNodes = document.querySelectorAll('[aria-busy="true"], div.progress, [role="progressbar"], span, div');
         for (const node of progressNodes) {
@@ -1162,144 +1169,139 @@
           chrome.runtime.sendMessage({ action: "LIVE_RENDER_PROGRESS", progress: liveProgress }).catch(() => {});
         }
 
-        // 2. Strict Diffing: Scan ONLY newly generated tile elements (STRICTLY EXCLUDING pre-existing ones)
+        // 2. Only analyze tiles after minimum generation wait
         if (elapsed >= minGenerationWaitMs) {
           const allTiles = Array.from(document.querySelectorAll('[data-tile-id], [data-item-id], [data-node-id], [role="gridcell"], div[class*="tile"], div[class*="card"]'));
           
           for (const tile of allTiles) {
+            // ── GUARD 1: Element-level baseline stamp — unconditional skip ──
+            if (tile.getAttribute("data-zf-baseline") === "1") {
+              continue;
+            }
+
+            // ── GUARD 2: String-based tile ID exclusion (backup) ──
             const tileId = tile.getAttribute("data-tile-id") || tile.getAttribute("data-item-id") || tile.getAttribute("data-node-id") || tile.getAttribute("data-card-id") || tile.getAttribute("data-asset-id") || tile.dataset?.tileId;
-            
-            // STRICT TOBYFLOW EXCLUSION: If tile was already in the DOM before submission, skip it!
             if (tileId && preTileIds.has(tileId)) {
               continue;
             }
 
+            // ── GUARD 3: Skip extension elements ──
+            if (isExtensionElement(tile)) continue;
+
             const status = detectTileStatus(tile);
 
+            // Track state transitions for this tile
+            if (!tileStateMap.has(tile)) {
+              tileStateMap.set(tile, { firstSeenAt: Date.now(), everSeenProcessing: false, lastStatus: status });
+            }
+            const tileState = tileStateMap.get(tile);
+            if (status === "processing") {
+              tileState.everSeenProcessing = true;
+            }
+            tileState.lastStatus = status;
+
             if (status === "success") {
+              // ── GUARD 4: Lazy-load grace detection ──
+              // If this tile appeared with instant "success" (never seen "processing") 
+              // within the lazy-load grace window, it's a pre-existing tile that was 
+              // virtualized/offscreen and just scrolled into view. Skip it.
+              if (!tileState.everSeenProcessing && (Date.now() - tileState.firstSeenAt) < lazyLoadGraceMs) {
+                // Check if its media was already on page — double confirmation
+                const media = tile.querySelector("video") || tile.querySelector("img");
+                const mediaUrl = media ? (media.currentSrc || media.src) : null;
+                if (mediaUrl && preMediaSrcs.has(mediaUrl)) {
+                  // Confirmed lazy-loaded old tile — stamp it and skip permanently
+                  tile.setAttribute("data-zf-baseline", "1");
+                  continue;
+                }
+                // If media URL is new but tile never showed "processing", 
+                // wait a few more cycles to confirm it's genuinely new
+                if ((Date.now() - tileState.firstSeenAt) < 3000) {
+                  continue; // Too early to decide — keep watching
+                }
+              }
+
               const video = tile.querySelector("video");
               const img = tile.querySelector("img");
               const media = video || img;
               const mediaUrl = media ? (media.currentSrc || media.src) : null;
 
-              if (mediaUrl && !preMediaSrcs.has(mediaUrl) && !discoveredMediaUrls.has(mediaUrl) && !mediaUrl.includes("media.html") && !mediaUrl.startsWith("data:image/svg")) {
-                discoveredMediaUrls.add(mediaUrl);
-                const res = {
-                  url: mediaUrl,
-                  type: video ? "video" : "image",
-                  tileId: tileId || ("tile_" + Date.now())
-                };
+              // ── GUARD 5: Media URL exclusion ──
+              if (!mediaUrl || preMediaSrcs.has(mediaUrl) || discoveredMediaUrls.has(mediaUrl)) continue;
+              if (mediaUrl.includes("media.html") || mediaUrl.startsWith("data:image/svg")) continue;
+              if (!mediaUrl.startsWith("http://") && !mediaUrl.startsWith("https://") && !mediaUrl.startsWith("blob:")) continue;
 
-                collectedResults.push(res);
-                console.log(`ZIG Flow: Captured verified new media [${collectedResults.length}/${expectedQuantity}]:`, res);
+              // ── GUARD 6: Media readiness verification (TobyFlow pattern) ──
+              if (img && (!img.complete || img.naturalWidth <= 50)) continue;
+              if (video && video.readyState < 2 && !mediaUrl.startsWith("blob:") && !mediaUrl.includes(".mp4")) continue;
 
-                // Broadcast immediate media ready for this tile
-                const itemPayload = {
-                  id: task.id ? `${task.id}_${collectedResults.length}` : null,
-                  taskId: task.id,
-                  provider: "Google Flow",
-                  prompt: task.prompt,
-                  mediaUrl: res.url,
-                  type: res.type,
-                  duration: task.duration,
-                  aspectRatio: task.aspectRatio,
-                  project: task.project
-                };
+              // ── GUARD 7: Ignore tiny UI elements (icons, avatars, etc.) ──
+              if (media) {
+                const rect = media.getBoundingClientRect();
+                if (rect.width < 70 || rect.height < 50) continue;
+                const lower = mediaUrl.toLowerCase();
+                if (lower.includes("avatar") || lower.includes("profile") || lower.includes("icon") || lower.includes("logo") || lower.includes("placeholder")) continue;
+              }
 
-                try {
-                  window.dispatchEvent(new CustomEvent("ZF_MEDIA_READY", { detail: itemPayload }));
-                  if (typeof window.__zf_onTaskCompleted === "function") window.__zf_onTaskCompleted(itemPayload);
-                } catch(e) {}
+              // ✅ All guards passed — this is a genuinely new, fully-rendered generation result
+              discoveredMediaUrls.add(mediaUrl);
+              // Permanently stamp this tile so it's never re-processed
+              tile.setAttribute("data-zf-baseline", "1");
 
-                chrome.runtime.sendMessage({
-                  action: "MEDIA_GENERATED_NOTIFICATION",
-                  payload: itemPayload
-                }).catch(() => {});
+              const res = {
+                url: mediaUrl,
+                type: video ? "video" : "image",
+                tileId: tileId || ("tile_" + Date.now())
+              };
 
-                if (collectedResults.length >= expectedQuantity) {
-                  isResolved = true;
-                  clearInterval(timer);
-                  resolve(collectedResults[0]);
-                  return;
-                }
+              collectedResults.push(res);
+              console.log(`ZIG Flow: ✅ Captured verified NEW media [${collectedResults.length}/${expectedQuantity}]:`, res);
+
+              // Broadcast media ready notification (single source of truth)
+              const itemPayload = {
+                id: task.id ? `${task.id}_${collectedResults.length}` : ("gen_" + Date.now()),
+                taskId: task.id,
+                provider: "Google Flow",
+                prompt: task.prompt,
+                mediaUrl: res.url,
+                type: res.type,
+                duration: task.duration,
+                aspectRatio: task.aspectRatio,
+                project: task.project
+              };
+
+              try {
+                window.dispatchEvent(new CustomEvent("ZF_MEDIA_READY", { detail: itemPayload }));
+                if (typeof window.__zf_onTaskCompleted === "function") window.__zf_onTaskCompleted(itemPayload);
+              } catch(e) {}
+
+              chrome.runtime.sendMessage({
+                action: "MEDIA_GENERATED_NOTIFICATION",
+                payload: itemPayload
+              }).catch(() => {});
+
+              if (collectedResults.length >= expectedQuantity) {
+                cleanup();
+                resolve(collectedResults[0]);
+                return;
               }
             } else if (status === "failed" && elapsed > 15000 && collectedResults.length === 0) {
-              isResolved = true;
-              clearInterval(timer);
+              cleanup();
               reject(new Error("Generation failed on Google Flow tile (error/warning detected)."));
               return;
             }
           }
 
-          // 3. Fallback scan for fresh media elements (STRICTLY EXCLUDING preMediaSrcs)
-          const allFreshMedia = Array.from(document.querySelectorAll('video, img')).filter(el => {
-            if (isExtensionElement(el) || el.offsetParent === null) return false;
-            const src = el.currentSrc || el.src;
-            const rawSrc = el.getAttribute("src");
-            if (!src || preMediaSrcs.has(src) || (rawSrc && preMediaSrcs.has(rawSrc)) || discoveredMediaUrls.has(src) || src.includes("media.html") || src.startsWith("data:image/svg")) return false;
-            const rect = el.getBoundingClientRect();
-            if (rect.width < 70 || rect.height < 50) return false;
-            const s = src.toLowerCase();
-            if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return false;
-            
-            if (el.tagName === "VIDEO") {
-              return el.readyState >= 2 || el.duration > 0 || src.startsWith("blob:") || src.includes(".mp4");
-            }
-            return el.complete && el.naturalWidth > 60;
-          });
-
-          if (allFreshMedia.length > 0) {
-            const media = allFreshMedia[0];
-            const src = media.currentSrc || media.src;
-            discoveredMediaUrls.add(src);
-            const res = {
-              url: src,
-              type: media.tagName === "VIDEO" ? "video" : "image"
-            };
-
-            collectedResults.push(res);
-            console.log("ZIG Flow: Captured fresh media via fallback:", res);
-
-            const itemPayload = {
-              id: task.id,
-              taskId: task.id,
-              provider: "Google Flow",
-              prompt: task.prompt,
-              mediaUrl: res.url,
-              type: res.type,
-              duration: task.duration,
-              aspectRatio: task.aspectRatio,
-              project: task.project
-            };
-
-            try {
-              window.dispatchEvent(new CustomEvent("ZF_MEDIA_READY", { detail: itemPayload }));
-              if (typeof window.__zf_onTaskCompleted === "function") window.__zf_onTaskCompleted(itemPayload);
-            } catch(e) {}
-
-            chrome.runtime.sendMessage({
-              action: "MEDIA_GENERATED_NOTIFICATION",
-              payload: itemPayload
-            }).catch(() => {});
-
-            isResolved = true;
-            clearInterval(timer);
-            resolve(res);
-            return;
-          }
-
-          // If at least 1 image was collected and we waited past threshold, resolve with what we have
-          if (collectedResults.length > 0 && elapsed > 10000) {
-            isResolved = true;
-            clearInterval(timer);
+          // If at least 1 image was collected and we waited past threshold, resolve
+          if (collectedResults.length > 0 && elapsed > 12000) {
+            cleanup();
             resolve(collectedResults[0]);
             return;
           }
         }
 
         if (elapsed > maxWaitMs) {
-          isResolved = true;
-          clearInterval(timer);
+          cleanup();
           if (collectedResults.length > 0) {
             resolve(collectedResults[0]);
           } else {
@@ -1308,16 +1310,34 @@
         }
       };
 
-      const timer = setInterval(() => {
+      // MutationObserver + Polling hybrid (TobyFlow pattern):
+      // Observer sets pendingCheck flag on DOM changes, polling loop does heavy work
+      try {
+        mutationObserver = new MutationObserver(() => { pendingCheck = true; });
+        mutationObserver.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["class", "src", "data-tile-id"]
+        });
+      } catch(e) {
+        console.warn("ZIG Flow: MutationObserver setup failed, falling back to polling only");
+      }
+
+      const pollTimer = setInterval(() => {
         if (isTaskAborted) {
-          isResolved = true;
-          clearInterval(timer);
+          cleanup();
           reject(new Error("Generation stopped by user"));
           return;
         }
-        check();
-      }, 800);
+        // Only run heavy check if DOM changed or enough time passed for progress scan
+        if (pendingCheck || (Date.now() - startTime) % 2000 < 350) {
+          pendingCheck = false;
+          check();
+        }
+      }, 300);
 
+      // First check after minimum wait
       setTimeout(check, minGenerationWaitMs);
     });
   }
@@ -2531,7 +2551,8 @@
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  /** Setup TobyFlow-grade on-page manual generation detector */
+  /** Setup TobyFlow-grade on-page manual generation detector.
+   *  Guards against self-triggering from automated executeFlowTask synthetic events. */
   function setupManualGenerationDetector() {
     let lastSubmitTime = 0;
     let isTrackingManual = false;
@@ -2539,6 +2560,8 @@
     const handleManualSubmit = async (promptText) => {
       const now = Date.now();
       if (now - lastSubmitTime < 3000 || isTrackingManual) return;
+      // Block if an automated task is currently running (prevents parallel tracking race)
+      if (window.__zf_automated_task_active) return;
       lastSubmitTime = now;
       isTrackingManual = true;
 
@@ -2570,6 +2593,9 @@
     };
 
     document.addEventListener("keydown", (e) => {
+      // GUARD: Only process real user keystrokes, not synthetic events from executeFlowTask
+      if (!e.isTrusted) return;
+      if (window.__zf_automated_task_active) return;
       if (e.key === "Enter" && !e.shiftKey) {
         const target = e.target;
         if (target && (target.tagName === "TEXTAREA" || target.getAttribute("role") === "textbox" || target.tagName === "INPUT")) {
@@ -2582,6 +2608,9 @@
     }, true);
 
     document.addEventListener("click", (e) => {
+      // GUARD: Only process real user clicks, not synthetic events from executeFlowTask
+      if (!e.isTrusted) return;
+      if (window.__zf_automated_task_active) return;
       const btn = e.target.closest('button, div[role="button"], a[role="button"]');
       if (btn && !btn.closest("#ziggyflow-floating-hud")) {
         const rect = btn.getBoundingClientRect();

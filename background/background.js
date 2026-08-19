@@ -527,8 +527,11 @@ class BackgroundController {
       await self.telegramBot.sendMedia(data.telegramChatId, data.mediaUrl, caption, data.type || "image");
     }
 
-    this.broadcast({ action: "TASK_COMPLETED", data });
-    this.broadcast({ action: "MEDIA_GENERATED_NOTIFICATION", payload: data });
+    // NOTE: Do NOT re-broadcast MEDIA_GENERATED_NOTIFICATION or TASK_COMPLETED back to tabs.
+    // The content script (google-flow.js trackGenerationProgress) already dispatched the
+    // ZF_MEDIA_READY event directly to the in-page overlay. Re-broadcasting here would cause
+    // the overlay to process the same completion event twice, creating duplicate entries
+    // and potentially triggering duplicate downloads.
   }
 
   async saveReferenceImage(imageObj) {

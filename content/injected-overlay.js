@@ -662,7 +662,9 @@
       if (e.detail) onTaskCompleted(e.detail);
     });
 
-    // Background runtime messages
+    // Background runtime messages — with deduplication to prevent processing
+    // the same completion event from multiple delivery channels
+    const _processedMessageUrls = new Set();
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.action === "BATCH_ENQUEUED" && Array.isArray(msg.tasks)) {
         onBatchEnqueued(msg.tasks);
@@ -674,9 +676,17 @@
         onLiveRenderProgress(msg.progress);
       }
       if (msg.action === "MEDIA_GENERATED_NOTIFICATION" && msg.payload) {
+        // Deduplicate: ZF_MEDIA_READY custom event already delivered this to onTaskCompleted
+        const url = msg.payload.mediaUrl;
+        if (url && _processedMessageUrls.has(url)) return;
+        if (url) _processedMessageUrls.add(url);
         onTaskCompleted(msg.payload);
       }
       if (msg.action === "TASK_COMPLETED" && msg.data) {
+        // Deduplicate: same media may have arrived via ZF_MEDIA_READY already
+        const url = msg.data.mediaUrl;
+        if (url && _processedMessageUrls.has(url)) return;
+        if (url) _processedMessageUrls.add(url);
         onTaskCompleted(msg.data);
       }
       if (msg.action === "QUEUE_FINISHED") {
@@ -762,8 +772,11 @@
   function onTaskCompleted(data) {
     if (!data || !data.mediaUrl) return;
 
-    // Avoid duplicate processing of exact same media
-    const isAlreadyKnown = processedMediaUrls.has(data.mediaUrl);
+    // Full deduplication: if this exact media URL was already processed, skip entirely
+    if (processedMediaUrls.has(data.mediaUrl)) {
+      console.log("ZIG Flow Mini: Skipping duplicate media completion:", data.mediaUrl.substring(0, 80));
+      return;
+    }
     processedMediaUrls.add(data.mediaUrl);
 
     // Find the target task:
@@ -827,7 +840,7 @@
       }
     }
 
-    if (isSoundEnabled && !isAlreadyKnown) {
+    if (isSoundEnabled) {
       playCompletionTone();
     }
 
