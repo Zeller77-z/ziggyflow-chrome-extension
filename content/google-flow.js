@@ -1176,11 +1176,22 @@
     }
 
     const start = Date.now();
+    const isGemini = window.location.hostname.includes("gemini.google.com");
+
     while (Date.now() - start < timeout) {
       if (isTaskAborted) return null;
 
-      // Strategy 1: Standard Flow Prompt Selectors
-      const standardSelectors = [
+      // Strategy 1: Dedicated Provider Selectors (Google Flow & Google Gemini)
+      const standardSelectors = isGemini ? [
+        'div[contenteditable="true"][role="textbox"]',
+        'rich-textarea div[contenteditable="true"]',
+        'rich-textarea',
+        '.ql-editor[contenteditable="true"]',
+        'div.input-area [contenteditable="true"]',
+        'textarea[aria-label*="prompt" i]',
+        'textarea'
+      ] : [
+        '[data-slate-editor="true"]',
         'textarea[data-testid="prompt-input"]',
         'textarea[aria-label*="prompt" i]',
         'textarea[aria-label*="describe" i]',
@@ -1194,7 +1205,7 @@
         const found = findAllDeep(sel).filter(el => {
           if (el.offsetParent === null || el.disabled || el.readOnly) return false;
           const rect = el.getBoundingClientRect();
-          return rect.width > 80 && rect.height > 10 && rect.top > window.innerHeight * 0.4;
+          return rect.width > 60 && rect.height > 10 && rect.top > window.innerHeight * 0.35;
         });
 
         if (found.length > 0) {
@@ -1208,7 +1219,7 @@
       const editables = findAllDeep('[contenteditable="true"]').filter(ed => {
         if (ed.offsetParent === null) return false;
         const rect = ed.getBoundingClientRect();
-        return rect.width > 80 && rect.height > 10 && rect.top > window.innerHeight * 0.4;
+        return rect.width > 60 && rect.height > 10 && rect.top > window.innerHeight * 0.35;
       });
 
       if (editables.length > 0) {
@@ -1278,7 +1289,13 @@
       await sleep(80);
 
       // 1. Try execCommand selectAll + insertText (native browser typing)
-      document.execCommand("selectAll", false, undefined);
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
       const execSuccess = document.execCommand("insertText", false, text);
 
       // 2. If it's a textarea/input, ensure value is set via native setter
@@ -1286,6 +1303,10 @@
         if (!execSuccess || el.value !== text) {
           setReactInputValue(el, text);
         }
+      } else if (!execSuccess && el.isContentEditable) {
+        // Fallback for Gemini / rich editors: create text node / paragraph
+        const textNode = document.createTextNode(text);
+        el.appendChild(textNode);
       }
 
       // 3. Dispatch full event chain for React/Angular/Lit state synchronization
@@ -1347,10 +1368,10 @@
     if (!btn) return true;
     if (isExtensionElement(btn)) return true;
 
-    // Strict vertical check: Generate button is ALWAYS in the bottom area (top > 38% of viewport)
+    // Strict vertical check: Generate button is ALWAYS in the bottom area (top > 35% of viewport)
     try {
       const rect = btn.getBoundingClientRect();
-      if (rect.top < window.innerHeight * 0.38) {
+      if (rect.top < window.innerHeight * 0.35) {
         return true; // Reject back button, header navbar, breadcrumb, profile
       }
     } catch(e) {}
@@ -1381,8 +1402,9 @@
 
     const promptRect = promptInput ? promptInput.getBoundingClientRect() : null;
     const promptY = promptRect ? promptRect.top : window.innerHeight * 0.8;
-    const minY = Math.max(promptY - 120, window.innerHeight * 0.4);
+    const minY = Math.max(promptY - 120, window.innerHeight * 0.35);
     const maxY = window.innerHeight;
+    const isGemini = window.location.hostname.includes("gemini.google.com");
 
     const start = Date.now();
     while (Date.now() - start < timeout) {
@@ -1392,6 +1414,7 @@
       if (promptInput) {
         const promptContainer = promptInput.closest("form") || 
                                 promptInput.closest('[role="region"]') || 
+                                promptInput.closest('.input-area') ||
                                 promptInput.parentElement?.parentElement || 
                                 promptInput.parentElement;
         if (promptContainer) {
@@ -1403,7 +1426,10 @@
             if (rect.width >= 16 && rect.height >= 16) {
               const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
               const hasSvg = !!btn.querySelector("svg");
-              if (aria.includes("generate") || aria.includes("submit") || aria.includes("send") || hasSvg || rect.left > promptRect.left) {
+              const icon = btn.querySelector("i.google-symbols, i[class*='symbol']");
+              const iconTxt = icon ? (icon.textContent || "").trim() : "";
+              
+              if (iconTxt === "arrow_forward" || iconTxt === "send" || aria.includes("generate") || aria.includes("submit") || aria.includes("send") || aria.includes("gửi") || hasSvg) {
                 console.log("ZiggyFlow: Found prompt container generate button:", btn);
                 return btn;
               }
@@ -1412,16 +1438,34 @@
         }
       }
 
-      // Fallback search across bottom area
+      // Gemini & Flow SVG path recognition (M2.01 21L23 12 / M2 21l21-9)
       const allButtons = findAllDeep('button, div[role="button"], a[role="button"]');
+      for (const btn of allButtons) {
+        if (btn.offsetParent === null || isExtensionElement(btn) || isNegativeButton(btn)) continue;
+        const rect = btn.getBoundingClientRect();
+        if (rect.top < minY || rect.top > maxY) continue;
+
+        const svgs = btn.querySelectorAll("svg");
+        for (const svg of svgs) {
+          const paths = svg.querySelectorAll("path");
+          for (const path of paths) {
+            const d = path.getAttribute("d") || "";
+            if (d.includes("M2.01 21L23 12") || d.includes("M2 21l21-9") || d.includes("m4 4 16 8-16 8") || d.match(/M\d+.*L.*\d+.*12/)) {
+              console.log("ZiggyFlow: Found submit button by SVG path signature:", btn);
+              return btn;
+            }
+          }
+        }
+      }
+
+      // Fallback search across bottom area
       const scored = [];
 
       for (const btn of allButtons) {
         if (btn.offsetParent === null) continue;
-        if (isExtensionElement(btn)) continue; // STRICTLY IGNORE EXTENSION OVERLAY!
+        if (isExtensionElement(btn)) continue;
         const rect = btn.getBoundingClientRect();
 
-        // Must be in bottom area
         if (rect.top < minY || rect.top > maxY) continue;
         if (rect.width < 10 || rect.height < 10) continue;
         if (isNegativeButton(btn)) continue;
@@ -1429,11 +1473,14 @@
         const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
         const text = (btn.textContent || "").trim().toLowerCase();
         const hasSvg = !!btn.querySelector('svg');
+        const icon = btn.querySelector("i.google-symbols, i[class*='symbol']");
+        const iconTxt = icon ? (icon.textContent || "").trim() : "";
         const isCircular = Math.abs(rect.width - rect.height) < 15 && rect.width < 80;
 
         let score = 0;
 
-        if (aria === "submit" || aria === "send" || aria === "generate" || aria === "gửi" || aria === "tạo") score += 100;
+        if (iconTxt === "arrow_forward" || iconTxt === "send") score += 120;
+        if (aria === "submit" || aria === "send" || aria === "generate" || aria === "gửi" || aria === "tạo" || aria.includes("send message") || aria.includes("gửi tin nhắn")) score += 100;
         if (text === "generate" || text === "tạo" || text === "submit" || text === "send" || text === "gửi") score += 100;
         if (text === "→" || text === "➔" || text === "▶") score += 80;
         if (hasSvg && isCircular) score += 50;

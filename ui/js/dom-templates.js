@@ -23,11 +23,11 @@ window.DomTemplatesManager = {
     if (data.domTemplates && Object.keys(data.domTemplates).length > 0) {
       this.templates = data.domTemplates;
     } else {
-      // Default initial templates
+      // Default initial templates matching TobyFlow providers
       this.templates = {
         'default': {
           id: 'default',
-          name: 'Google Flow (Auto-Detect Heuristic)',
+          name: 'Google Flow (Auto-Detect + TobyFlow Bypass)',
           isDefault: true,
           clickStrategy: 'enter',
           strategyConfig: JSON.parse(JSON.stringify(this.defaultStrategyConfig)),
@@ -36,24 +36,47 @@ window.DomTemplatesManager = {
           aspectRatio: null,
           modelSelector: null
         },
+        'google_gemini': {
+          id: 'google_gemini',
+          name: 'Google Gemini (gemini.google.com)',
+          isDefault: false,
+          clickStrategy: 'react_fiber',
+          strategyConfig: JSON.parse(JSON.stringify(this.defaultStrategyConfig)),
+          promptInput: {
+            selector: "div[contenteditable='true'][role='textbox'], rich-textarea, textarea",
+            xpath: "//div[@contenteditable='true' and @role='textbox'] | //rich-textarea | //textarea",
+            tag: 'DIV',
+            label: 'Gemini Composer Input',
+            coords: { pctX: 0.5, pctY: 0.88 }
+          },
+          generateButton: {
+            selector: "button[aria-label*='Send'], button[aria-label*='Gửi'], button:has(svg path[d*='M2.01'])",
+            xpath: "//button[contains(@aria-label, 'Send') or contains(@aria-label, 'Gửi') or .//svg]",
+            tag: 'BUTTON',
+            label: 'Gemini Send / Submit Button',
+            coords: { pctX: 0.82, pctY: 0.89 }
+          },
+          aspectRatio: null,
+          modelSelector: null
+        },
         'flow_2026': {
           id: 'flow_2026',
-          name: 'Google Flow (2026 Layout)',
+          name: 'Google Flow (Labs FX / Studio)',
           isDefault: false,
           clickStrategy: 'enter',
           strategyConfig: JSON.parse(JSON.stringify(this.defaultStrategyConfig)),
           promptInput: {
-            selector: "textarea, div[role='textbox']",
-            xpath: "//textarea | //div[@role='textbox']",
-            tag: 'TEXTAREA',
-            label: 'Bottom Prompt Container',
+            selector: "[data-slate-editor='true'], textarea, div[role='textbox']",
+            xpath: "//*[@data-slate-editor='true'] | //textarea | //div[@role='textbox']",
+            tag: 'DIV',
+            label: 'Flow Slate Prompt Container',
             coords: { pctX: 0.35, pctY: 0.88 }
           },
           generateButton: {
-            selector: "button[aria-label*='generate'], button[aria-label*='submit'], button svg",
-            xpath: "//button[contains(@aria-label, 'generate') or contains(@aria-label, 'submit')]",
+            selector: "button[aria-label*='generate'], button[aria-label*='submit'], button:has(i.google-symbols)",
+            xpath: "//button[contains(@aria-label, 'generate') or contains(@aria-label, 'submit') or .//i[contains(text(), 'arrow_forward')]]",
             tag: 'BUTTON',
-            label: 'Circular Generate Arrow Button',
+            label: 'Flow Arrow / Generate Button',
             coords: { pctX: 0.51, pctY: 0.91 }
           },
           aspectRatio: null,
