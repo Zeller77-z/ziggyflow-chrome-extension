@@ -176,6 +176,55 @@
         return true;
       }
 
+      if (request.action === "SWITCH_TO_PROJECT") {
+        const targetName = request.projectName || "";
+        const allClickable = findAllDeep('a, button, div[role="button"], span, p');
+        let matched = null;
+        for (const el of allClickable) {
+          const t = (el.textContent || "").trim();
+          if (t && (t === targetName || (targetName.length > 5 && t.includes(targetName)))) {
+            matched = el;
+            break;
+          }
+        }
+        if (matched) {
+          matched.scrollIntoView({ behavior: "smooth", block: "center" });
+          highlightElement(matched, "#a3e635");
+          safeClick(matched);
+          showLiveToast(`✦ Switched to project: ${targetName}`);
+          sendResponse({ success: true, projectName: targetName });
+        } else {
+          sendResponse({ success: false, error: "Project not found on page" });
+        }
+        return true;
+      }
+
+      if (request.action === "TRIGGER_NEW_PROJECT_ON_PAGE") {
+        const buttons = findAllDeep('button, a[role="button"], div[role="button"], a');
+        let newBtn = buttons.find(b => {
+          const t = (b.textContent || "").trim().toLowerCase();
+          const aria = (b.getAttribute("aria-label") || "").toLowerCase();
+          return t.includes("new project") || t.includes("tạo dự án") || t.includes("create project") || aria.includes("new project") || aria.includes("create project");
+        });
+        if (!newBtn) {
+          newBtn = buttons.find(b => {
+            const icon = b.querySelector('i.google-symbols, i[class*="symbol"], svg');
+            const iconText = icon ? (icon.textContent || "").trim() : "";
+            return iconText === "add" || iconText === "add_circle" || iconText === "create_new_folder";
+          });
+        }
+        if (newBtn) {
+          highlightElement(newBtn, "#ccff00");
+          safeClick(newBtn);
+          showLiveToast("➕ Creating new project on Google Flow...");
+          sendResponse({ success: true });
+        } else {
+          showLiveToast("⚠️ 'New Project' button not found on page", true);
+          sendResponse({ success: false, error: "New Project button not found" });
+        }
+        return true;
+      }
+
       if (request.action === "PING_DRIVER") {
         const projects = scanFlowProjects();
         sendResponse({

@@ -218,6 +218,15 @@ class BackgroundController {
         sendResponse({ success: true });
         break;
 
+      case "UPDATE_TELEGRAM_SETTINGS":
+        if (self.telegramBot) {
+          self.telegramBot.enabled = !!payload?.enabled;
+          self.telegramBot.botToken = payload?.token || "";
+          self.telegramBot.chatId = payload?.chatId || "";
+        }
+        sendResponse({ success: true });
+        break;
+
       case "OPEN_SIDEPANEL":
         if (chrome.sidePanel && chrome.sidePanel.open) {
           const tabId = sender?.tab?.id;
