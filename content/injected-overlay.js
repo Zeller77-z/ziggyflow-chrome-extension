@@ -630,12 +630,8 @@
     });
 
     const triggerDownloadAll = () => {
-      let tasksToDownload = currentBatchTasks.filter(t => t.status === "done" && t.mediaUrl);
-      if (tasksToDownload.length === 0 && galleryHistoryTasks.length > 0) {
-        tasksToDownload = galleryHistoryTasks.filter(t => t.mediaUrl);
-      }
+      const tasksToDownload = currentBatchTasks.filter(t => t.status === "done" && t.mediaUrl);
       if (tasksToDownload.length === 0) {
-        alert("No completed generations to download yet.");
         return;
       }
       tasksToDownload.forEach(t => {
@@ -706,10 +702,10 @@
     if (pill) pill.style.display = "none";
 
     batchStartTime = Date.now();
-    currentBatchTasks = tasks.map(t => ({
+    currentBatchTasks = tasks.map((t, idx) => ({
       ...t,
-      status: "waiting",
-      startTime: null,
+      status: idx === 0 ? "generating" : "waiting",
+      startTime: idx === 0 ? Date.now() : null,
       mediaUrl: null
     }));
 
@@ -734,20 +730,11 @@
     const livePct = document.getElementById("zf-live-render-pct");
     if (livePct) livePct.innerText = "1%";
 
-    // ── CRITICAL FIX: Clear stale tasks from previous generation sessions ──
-    // If all existing tasks are in terminal states (done/failed), this is a NEW
-    // generation session — clear the old batch so they don't show up alongside the new one.
-    const allTerminal = currentBatchTasks.length === 0 || currentBatchTasks.every(t => t.status === "done" || t.status === "failed");
-    if (allTerminal && currentBatchTasks.length > 0) {
-      console.log("ZIG Flow Mini: Clearing", currentBatchTasks.length, "completed tasks from previous session");
-      currentBatchTasks = [];
-    }
-
     batchStartTime = Date.now();
 
     task.id = task.id || ("gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6));
 
-    // Match or insert task in batch
+    // Match existing waiting task in current batch or reset to active task
     let existing = currentBatchTasks.find(t => t.id === task.id || (t.prompt === task.prompt && t.status === "waiting"));
     if (existing) {
       existing.status = "generating";
@@ -756,7 +743,7 @@
     } else {
       task.status = "generating";
       task.startTime = Date.now();
-      currentBatchTasks.push(task);
+      currentBatchTasks = [task];
     }
 
     startBatchTimer();

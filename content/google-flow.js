@@ -1061,7 +1061,33 @@
   function detectTileStatus(tileEl) {
     if (!tileEl) return "processing";
 
-    // 1. Check for valid rendered image/video in this tile
+    // 1. Check for progress percentage (e.g. "60%", "45%")
+    const progressEl = Array.from(tileEl.querySelectorAll("div, span, p")).find(d => {
+      if (d.children.length > 2) return false;
+      return /^\d{1,3}%$/.test((d.textContent || "").trim());
+    });
+    if (progressEl) return "processing";
+
+    // 2. Check for generating icons (play_circle, progress_activity, sync, hourglass)
+    const genIcon = Array.from(tileEl.querySelectorAll("i, span, svg")).find(el => {
+      const t = (el.textContent || "").trim();
+      return t === "play_circle" || t === "progress_activity" || t === "hourglass_empty" || t === "hourglass_bottom" || t === "sync";
+    });
+    if (genIcon && isElementVisible(genIcon)) return "processing";
+
+    // 3. Check for aria-busy, skeleton, spinner, or progressbar
+    const isBusy = tileEl.getAttribute("aria-busy") === "true" || 
+      tileEl.querySelector('[aria-busy="true"], [role="progressbar"], .skeleton, .animate-spin, div[class*="loading"], div[class*="spinner"]');
+    if (isBusy) return "processing";
+
+    // 4. Check for warning/error icon
+    const warningIcon = Array.from(tileEl.querySelectorAll("i, span")).find(el => {
+      const t = (el.textContent || "").trim();
+      return t === "warning" || t === "error" || t === "report" || t === "refresh" || t === "error_outline";
+    });
+    if (warningIcon && isElementVisible(warningIcon)) return "failed";
+
+    // 5. ONLY IF NOT PROCESSING AND NOT FAILED: Check for valid rendered image/video in this tile
     const video = tileEl.querySelector("video");
     const img = tileEl.querySelector("img");
     const media = video || img;
@@ -1073,36 +1099,12 @@
         (!src.startsWith("http://") && !src.startsWith("https://") && !src.startsWith("blob:") && !rawSrc.startsWith("/fx/"));
 
       const isLoaded = video ? (video.readyState >= 2 || video.duration > 0 || src.startsWith("blob:") || src.includes(".mp4"))
-                             : (img.complete && img.naturalWidth > 50);
+                             : (img.complete && img.naturalWidth > 60);
 
       if (!isPlaceholder && isLoaded) {
         return "success";
       }
     }
-
-    // 2. Check for progress percentage (e.g. "45%")
-    const progressEl = Array.from(tileEl.querySelectorAll("div, span, p")).find(d => {
-      if (d.children.length > 2) return false;
-      return /^\d{1,3}%$/.test((d.textContent || "").trim());
-    });
-    if (progressEl) return "processing";
-
-    // 3. Check for generating icons (play_circle, progress_activity, sync, hourglass)
-    const genIcon = Array.from(tileEl.querySelectorAll("i, span")).find(el => {
-      const t = (el.textContent || "").trim();
-      return t === "play_circle" || t === "progress_activity" || t === "hourglass_empty" || t === "sync";
-    });
-    if (genIcon && isElementVisible(genIcon)) return "processing";
-
-    const isBusy = tileEl.getAttribute("aria-busy") === "true" || tileEl.querySelector('[aria-busy="true"], [role="progressbar"], .skeleton, .animate-spin');
-    if (isBusy) return "processing";
-
-    // 4. Check for warning/error icon
-    const warningIcon = Array.from(tileEl.querySelectorAll("i, span")).find(el => {
-      const t = (el.textContent || "").trim();
-      return t === "warning" || t === "error" || t === "report" || t === "refresh" || t === "error_outline";
-    });
-    if (warningIcon && isElementVisible(warningIcon)) return "failed";
 
     return "processing";
   }
