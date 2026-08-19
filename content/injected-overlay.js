@@ -691,7 +691,9 @@
     const livePct = document.getElementById("zf-live-render-pct");
     if (livePct) livePct.innerText = "1%";
 
-    let existing = currentBatchTasks.find(t => t.id === task.id || t.prompt === task.prompt);
+    // Ensure unique task ID
+    task.id = task.id || "gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
+    let existing = currentBatchTasks.find(t => t.id === task.id);
     if (!existing) {
       task.status = "generating";
       task.startTime = Date.now();
@@ -720,8 +722,9 @@
   }
 
   function onTaskCompleted(data) {
-    const task = currentBatchTasks.find(t => t.prompt === data.prompt && t.status === "generating") || 
-                 currentBatchTasks.find(t => t.status === "generating") ||
+    const task = (data.id ? currentBatchTasks.find(t => t.id === data.id) : null) || 
+                 currentBatchTasks.find(t => t.status === "generating") || 
+                 currentBatchTasks.find(t => t.prompt === data.prompt && t.status !== "done") ||
                  currentBatchTasks[currentBatchTasks.length - 1];
     
     if (task) {

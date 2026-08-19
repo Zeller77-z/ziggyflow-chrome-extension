@@ -1960,33 +1960,46 @@
     } catch (e) {}
   }
 
+  const seenMediaUrls = new Set();
+
   function countMediaElements() {
-    return document.querySelectorAll('video, img[src*="blob:"], img[src*="googleusercontent"]').length;
+    return document.querySelectorAll('video, img[src*="blob:"], img[src*="googleusercontent"], img[src*="data:image"]').length;
   }
 
   function getLatestRenderedMedia() {
     // 1. Check for video elements
     for (const video of document.querySelectorAll("video")) {
-      if (video.src && !isExtensionElement(video)) {
-        if (video.readyState >= 2 || video.duration > 0 || video.src.includes(".mp4")) {
-          return { url: video.src, type: "video" };
+      const src = video.currentSrc || video.src;
+      if (src && !isExtensionElement(video)) {
+        if (!seenMediaUrls.has(src) && (video.readyState >= 2 || video.duration > 0 || src.includes(".mp4") || src.startsWith("blob:"))) {
+          seenMediaUrls.add(src);
+          return { url: src, type: "video" };
         }
       }
     }
 
     // 2. Check for newly loaded canvas/tile images (matching Google Flow canvas tiles)
     const validImgs = Array.from(document.querySelectorAll("img")).filter(img => {
-      if (!img.src || isExtensionElement(img)) return false;
+      const src = img.currentSrc || img.src;
+      if (!src || isExtensionElement(img)) return false;
       const rect = img.getBoundingClientRect();
       if (rect.width < 60 || rect.height < 50) return false;
-      const src = img.src.toLowerCase();
-      if (src.includes("avatar") || src.includes("profile") || src.includes("icon") || src.includes("logo") || src.includes("placeholder")) return false;
-      return img.complete && (img.naturalWidth > 60 || src.startsWith("blob:") || src.includes("googleusercontent") || src.startsWith("data:image"));
+      const s = src.toLowerCase();
+      if (s.includes("avatar") || s.includes("profile") || s.includes("icon") || s.includes("logo") || s.includes("placeholder")) return false;
+      return img.complete && (img.naturalWidth > 60 || s.startsWith("blob:") || s.includes("googleusercontent") || s.startsWith("data:image"));
     });
 
+    // Prefer un-seen images first
+    const freshImg = validImgs.find(img => !seenMediaUrls.has(img.currentSrc || img.src));
+    if (freshImg) {
+      const url = freshImg.currentSrc || freshImg.src;
+      seenMediaUrls.add(url);
+      return { url, type: "image" };
+    }
+
+    // If all seen but we have at least one valid image
     if (validImgs.length > 0) {
-      // Return the top/first rendered canvas image (newest generation on Google Flow)
-      return { url: validImgs[0].src, type: "image" };
+      return { url: validImgs[0].currentSrc || validImgs[0].src, type: "image" };
     }
 
     return null;
