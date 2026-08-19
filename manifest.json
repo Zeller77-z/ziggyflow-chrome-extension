@@ -56,7 +56,7 @@
         "https://*.google.com/*",
         "https://aitestkitchen.withgoogle.com/*"
       ],
-      "js": ["content/google-flow.js", "content/floating-tracker-flow.js"],
+      "js": ["content/floating-tracker-flow.js", "content/google-flow.js"],
       "run_at": "document_idle"
     },
     {
@@ -65,7 +65,7 @@
         "https://*.openai.com/*",
         "https://chat.openai.com/*"
       ],
-      "js": ["content/chatgpt.js", "content/floating-tracker-flow.js"],
+      "js": ["content/floating-tracker-flow.js", "content/chatgpt.js"],
       "run_at": "document_idle"
     },
     {
@@ -74,7 +74,7 @@
         "https://*.x.ai/*",
         "https://x.com/i/grok*"
       ],
-      "js": ["content/grok.js", "content/floating-tracker-flow.js"],
+      "js": ["content/floating-tracker-flow.js", "content/grok.js"],
       "run_at": "document_idle"
     },
     {
