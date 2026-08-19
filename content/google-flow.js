@@ -28,6 +28,42 @@
 
   injectHeaderButton();
   startProjectObserver();
+  injectSlateBridge();
+
+  // =============================================
+  // 0.5 SLATE & REACT FIBER MAIN WORLD BRIDGE INJECTOR
+  // =============================================
+  function injectSlateBridge() {
+    if (document.getElementById("ziggyflow-slate-bridge-script")) return;
+    try {
+      const s = document.createElement("script");
+      s.id = "ziggyflow-slate-bridge-script";
+      s.src = chrome.runtime.getURL("content/slate-bridge.js");
+      (document.head || document.documentElement).appendChild(s);
+      console.log("ZiggyFlow: slate-bridge.js script tag appended to document.");
+    } catch(e) {}
+  }
+
+  function _slateBridgeCall(action, payload = {}) {
+    return new Promise((resolve) => {
+      injectSlateBridge();
+      const rid = "zf_bridge_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+      
+      const onMsg = (e) => {
+        if (e.source !== window || !e.data || e.data.source !== "ziggyflow-bridge-response" || e.data.requestId !== rid) return;
+        window.removeEventListener("message", onMsg);
+        resolve(e.data);
+      };
+      
+      window.addEventListener("message", onMsg);
+      window.postMessage({ source: "ziggyflow-bridge-request", action, ...payload, requestId: rid }, window.location.origin);
+      
+      setTimeout(() => {
+        window.removeEventListener("message", onMsg);
+        resolve({ success: false, timeout: true });
+      }, 4000);
+    });
+  }
 
   // =============================================
   // MESSAGE ROUTER
@@ -618,11 +654,11 @@
   // 5. MAIN TASK EXECUTION ENGINE
   // =============================================
   // =============================================
-  // 5. TASK ORCHESTRATOR & GENERATION OBSERVER
+  // 5. TASK ORCHESTRATOR & GENERATION OBSERVER (TobyFlow Grade)
   // =============================================
   async function executeFlowTask(task) {
     if (isTaskAborted) throw new Error("Task was aborted");
-    showLiveToast(`⚡ ZiggyFlow: Automating Google Flow...`);
+    showLiveToast(`⚡ ZiggyFlow: Automating Flow generation...`);
 
     // Reset and notify overlay mini-window of the active task
     try {
@@ -636,26 +672,30 @@
 
     // 1. Settings Popover (Aspect Ratio & Quantity)
     await configureGoogleFlowSettings(task);
-    await sleep(300);
+    await sleep(250);
 
     // 2. Find the exact prompt input
     const promptInput = await findExactPromptInput(10000);
-    if (!promptInput) throw new Error("Could not find Google Flow prompt box.");
+    if (!promptInput) throw new Error("Could not find prompt box.");
     
     console.log("ZiggyFlow: Found prompt element:", promptInput.tagName, promptInput.className, 
       "rect:", promptInput.getBoundingClientRect());
     highlightElement(promptInput, "#c4f82a");
 
-    // 3. Inject prompt text cleanly with native typing simulation
-    await safeReactType(promptInput, task.prompt);
-    await sleep(200);
-
-    // Mark element for Main World script execution
+    // 3. Inject prompt text via Main World Slate Bridge + Safe React Type
     promptInput.setAttribute("data-ziggy-prompt", "true");
+    
+    // Tier 1: Main World Slate.js bridge insert
+    const bridgeInsertResult = await _slateBridgeCall("insert", { text: task.prompt });
+    console.log("ZiggyFlow: Slate bridge insert result:", bridgeInsertResult);
+
+    // Tier 2: Isolated world fallback typing
+    await safeReactType(promptInput, task.prompt);
+    await sleep(150);
 
     // Sync React 18 internal value tracker safely in Main World
     syncReactStateInMainWorld(task.prompt);
-    await sleep(150);
+    await sleep(100);
 
     const isManualSubmit = (task.submitMode || "auto") === "manual";
 
@@ -663,7 +703,7 @@
       // ==========================================
       // MANUAL SUBMIT WORKFLOW (TobyFlow Pattern)
       // ==========================================
-      console.log("ZiggyFlow: Manual Submit Mode active — attaching listeners.");
+      console.log("ZiggyFlow: Manual Submit Mode active — showing top manual banner.");
       showLiveToast("⏱ Manual Submit: Press Enter or Click Submit on page", false);
       
       const generateBtn = await findGenerateButton(promptInput, 2000);
@@ -671,20 +711,23 @@
         generateBtn.setAttribute("data-ziggy-generate", "true");
       }
 
-      await showManualSubmitPromptBadge(promptInput, generateBtn, 120000);
+      await showManualSubmitPromptBanner(promptInput, generateBtn, 120000);
       showLiveToast("🚀 Generation submitted! Tracking progress...");
     } else {
       // ==========================================
       // AUTO SUBMIT WORKFLOW (Full TobyFlow-Grade Multi-Tier Bypass Engine)
       // ==========================================
-      console.log("ZiggyFlow: Auto-Submitting via TobyFlow-grade Multi-Tier Bypass Engine...");
+      console.log("ZiggyFlow: Auto-Submitting via TobyFlow Main-World Slate Bridge...");
       showLiveToast("🚀 Submitting generation via TobyFlow bypass...", false);
 
-      // A. Focus prompt input directly
+      // Tier A: Main World Bridge insertAndSubmit / submitOnly
+      const bridgeSubmit = await _slateBridgeCall("submitOnly");
+      console.log("ZiggyFlow: Slate bridge submitOnly result:", bridgeSubmit);
+
+      // Tier B: Focus prompt input and dispatch Full Native Enter Event Sequence
       promptInput.focus();
       await sleep(60);
 
-      // B. Dispatch Full Native Enter Event Sequence in Isolated World
       const enterOpts = {
         key: "Enter",
         code: "Enter",
@@ -700,16 +743,16 @@
       promptInput.dispatchEvent(new KeyboardEvent("keypress", enterOpts));
       promptInput.dispatchEvent(new KeyboardEvent("keyup", enterOpts));
 
-      // C. Dispatch TobyFlow 4-Method Slate & React Fiber Submit Bypass in Main World
+      // Tier C: Dispatch TobyFlow 4-Method Slate & React Fiber Submit Bypass in Main World
       executeTobyFlowSubmitBypass(task.prompt);
-      await sleep(200);
+      await sleep(150);
 
-      // D. Complementary: if a real Generate button is near the prompt box, click it cleanly as backup
+      // Tier D: Complementary click on Generate button
       try {
         const generateBtn = await findGenerateButton(promptInput, 1500);
         if (generateBtn && !isNegativeButton(generateBtn) && !isExtensionElement(generateBtn)) {
           const btnRect = generateBtn.getBoundingClientRect();
-          if (btnRect.top >= window.innerHeight * 0.38) {
+          if (btnRect.top >= window.innerHeight * 0.35) {
             console.log("ZiggyFlow: Backup click on Generate button:", generateBtn);
             clickButtonCleanly(generateBtn);
           }
@@ -723,7 +766,7 @@
     const mediaResult = await trackGenerationProgress(240000);
     
     const mediaPayload = {
-      provider: "Google Flow",
+      provider: window.location.hostname.includes("gemini.google.com") ? "Google Gemini" : "Google Flow",
       prompt: task.prompt,
       mediaUrl: mediaResult.url,
       type: mediaResult.type,
@@ -1055,55 +1098,59 @@
     } catch (e) {}
   }
 
-  /** Shows the on-page floating green helper badge under the prompt box for manual submission (Matching TobyFlow) */
-  async function showManualSubmitPromptBadge(promptInput, generateBtn, timeoutMs = 90000) {
+  /** Shows TobyFlow-grade Top Manual Enter Banner with live prompt tracking & skip button */
+  async function showManualSubmitPromptBanner(promptInput, generateBtn, timeoutMs = 120000) {
     return new Promise((resolve) => {
-      const existing = document.getElementById("zf-manual-submit-badge");
+      const existing = document.getElementById("zf-manual-enter-banner");
       if (existing) existing.remove();
 
-      const inputRect = promptInput.getBoundingClientRect();
-      const badge = document.createElement("div");
-      badge.id = "zf-manual-submit-badge";
-      badge.style.cssText = `
+      const banner = document.createElement("div");
+      banner.id = "zf-manual-enter-banner";
+      banner.setAttribute("data-ziggy-internal", "true");
+      banner.style.cssText = `
         position: fixed;
-        left: ${Math.max(20, inputRect.left + (inputRect.width / 2) - 130)}px;
-        top: ${Math.min(window.innerHeight - 60, inputRect.bottom + 8)}px;
-        background: #064e3b;
-        color: #ecfdf5;
-        border: 1.5px solid #10b981;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(180deg, rgba(18,22,30,0.95), rgba(4,7,12,0.98));
+        color: #f1f5f9;
+        border: 1.5px solid #a3e635;
         border-radius: 9999px;
-        padding: 6px 12px 6px 14px;
+        padding: 8px 18px;
         display: flex;
         align-items: center;
-        gap: 10px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(16, 185, 129, 0.4);
+        gap: 14px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(163, 230, 53, 0.4);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         z-index: 2147483647;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 700;
-        cursor: pointer;
         user-select: none;
         animation: zfBadgeBounce 0.3s ease-out;
       `;
 
-      badge.innerHTML = `
-        <div style="display:flex;align-items:center;gap:6px;" id="zf-badge-action-trigger" title="Click to auto-submit now">
-          <span style="font-size:15px;color:#34d399;">↩</span>
-          <span>Press Enter / click Submit</span>
+      banner.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;" id="zf-manual-action-trigger" style="cursor:pointer;" title="Click to auto-submit">
+          <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#a3e635;box-shadow:0 0 8px #a3e635;animation:zfPillPulse 1.5s infinite;"></span>
+          <span style="color:#a3e635;">⚡ Ready:</span>
+          <span>Press Enter or Click Submit on page to generate</span>
         </div>
-        <button id="zf-badge-skip-btn" style="
-          background: #047857;
-          color: #ffffff;
-          border: 1px solid #10b981;
+        <button id="zf-manual-skip-btn" style="
+          background: rgba(239,68,68,0.2);
+          color: #f87171;
+          border: 1px solid rgba(239,68,68,0.4);
           border-radius: 9999px;
-          padding: 2px 10px;
-          font-size: 11px;
+          padding: 3px 12px;
+          font-size: 11.5px;
           font-weight: 800;
           cursor: pointer;
+          transition: all 0.15s ease;
         ">Skip</button>
       `;
 
-      document.body.appendChild(badge);
+      document.body.appendChild(banner);
 
       let isFinished = false;
       const cleanup = () => {
@@ -1111,10 +1158,10 @@
         isFinished = true;
         document.removeEventListener("keydown", keyHandler, true);
         if (generateBtn) generateBtn.removeEventListener("click", clickHandler, true);
-        badge.style.opacity = "0";
-        badge.style.transform = "scale(0.9)";
-        badge.style.transition = "all 0.2s ease";
-        setTimeout(() => badge.remove(), 250);
+        banner.style.opacity = "0";
+        banner.style.transform = "translateX(-50%) scale(0.9)";
+        banner.style.transition = "all 0.2s ease";
+        setTimeout(() => banner.remove(), 250);
         resolve(true);
       };
 
@@ -1131,14 +1178,14 @@
       document.addEventListener("keydown", keyHandler, true);
       if (generateBtn) generateBtn.addEventListener("click", clickHandler, true);
 
-      badge.querySelector("#zf-badge-action-trigger")?.addEventListener("click", () => {
+      banner.querySelector("#zf-manual-action-trigger")?.addEventListener("click", () => {
         promptInput.focus();
         promptInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
-        if (generateBtn) forceClickElement(generateBtn);
+        if (generateBtn) clickButtonCleanly(generateBtn);
         cleanup();
       });
 
-      badge.querySelector("#zf-badge-skip-btn")?.addEventListener("click", (e) => {
+      banner.querySelector("#zf-manual-skip-btn")?.addEventListener("click", (e) => {
         e.stopPropagation();
         cleanup();
       });
