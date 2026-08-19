@@ -671,7 +671,7 @@
       if (!popover) {
         const settingsPill = findSettingsPillButton();
         if (settingsPill) {
-          console.log("ZiggyFlow: Opening settings popover via button:", settingsPill);
+          console.log("ZIG Flow: Opening settings popover via button:", settingsPill);
           safeClick(settingsPill);
           await sleep(500);
           popover = findSettingsPopover();
@@ -679,68 +679,93 @@
       }
 
       if (!popover) {
-        console.log("ZiggyFlow: Settings popover not found on page, continuing with active preset.");
+        console.log("ZIG Flow: Settings popover not found on page, continuing with active preset.");
         return;
       }
 
-      console.log("ZiggyFlow: Settings popover active:", popover);
+      console.log("ZIG Flow: Settings popover active:", popover);
 
-      // 1. Media Mode: Image vs Video
-      if (task.type) {
-        const targetType = task.type.toLowerCase() === "video" ? "video" : "image";
-        const typeSuffix = targetType === "video" ? "VIDEO" : "IMAGE";
-        
-        // Tier 1: ID suffix
-        let typeBtn = popover.querySelector(`button[id$="-trigger-${typeSuffix}"], [id*="-trigger-${typeSuffix}"]`);
-        if (typeBtn) {
-          safeClick(typeBtn);
+      const isVideo = (task.type || "").toLowerCase() === "video";
+
+      // 1. Mode Tab: IMAGE vs VIDEO
+      const typeSuffix = isVideo ? "VIDEO" : "IMAGE";
+      let typeBtn = popover.querySelector('button[id$="-trigger-' + typeSuffix + '"], [id*="-trigger-' + typeSuffix + '"]');
+      if (typeBtn) {
+        safeClick(typeBtn);
+        await sleep(300);
+      } else {
+        const tabs = Array.from(popover.querySelectorAll('button, [role="tab"], [role="radio"]'));
+        const matchTab = tabs.find(t => {
+          const txt = (t.textContent || "").trim().toLowerCase();
+          return isVideo ? txt.includes("video") : (txt.includes("image") || txt.includes("ảnh"));
+        });
+        if (matchTab) {
+          safeClick(matchTab);
+          await sleep(300);
+        }
+      }
+
+      // Re-acquire popover after tab switch
+      popover = findSettingsPopover() || popover;
+
+      // 2. Video Framing Mode (Frames vs Ingredients / References)
+      if (isVideo) {
+        const isFrames = task.framingMode === "Frames" || !!task.startFrame || !!task.endFrame || task.isFrames === true;
+        const frameSuffix = isFrames ? "VIDEO_FRAMES" : "VIDEO_REFERENCES";
+        const frameBtn = popover.querySelector('button[id$="-trigger-' + frameSuffix + '"], [id*="-trigger-' + frameSuffix + '"], button[aria-controls*="' + frameSuffix + '"]');
+        if (frameBtn) {
+          console.log("ZIG Flow: Selected Video Framing [" + frameSuffix + "]:", frameBtn);
+          safeClick(frameBtn);
           await sleep(250);
         } else {
-          // Tier 2: Text matching
-          const typeChips = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], span, div'));
-          const found = typeChips.find(el => {
-            if (el.offsetParent === null) return false;
-            const t = (el.textContent || "").trim().toLowerCase();
-            return t === targetType || (targetType === "image" && (t === "ảnh" || t === "image")) || (targetType === "video" && t === "video");
+          const frameTabs = Array.from(popover.querySelectorAll('button, [role="tab"]'));
+          const matchFrame = frameTabs.find(t => {
+            const txt = (t.textContent || "").trim().toLowerCase();
+            return isFrames ? (txt.includes("frame") || txt.includes("khung")) : (txt.includes("ingredient") || txt.includes("reference") || txt.includes("tham chiếu"));
           });
-          if (found) {
-            const btn = found.closest('button, [role="button"], [role="radio"], [role="tab"]') || found;
-            safeClick(btn);
+          if (matchFrame) {
+            safeClick(matchFrame);
             await sleep(250);
           }
         }
       }
 
-      // 2. Aspect Ratio (16:9, 9:16, 1:1, 4:3, 3:4, 21:9)
+      // 3. Video Duration (5s, 6s, 8s)
+      if (isVideo && (task.duration || task.flowVideoDuration)) {
+        const targetDur = String(task.duration || task.flowVideoDuration).trim().toLowerCase();
+        const durButtons = Array.from(popover.querySelectorAll('button, [role="tab"], [role="radio"]'));
+        const durBtn = durButtons.find(b => {
+          const txt = (b.textContent || "").trim().toLowerCase();
+          return txt === targetDur || txt === targetDur.replace("s", " giây") || txt === targetDur.replace("s", "s");
+        });
+        if (durBtn) {
+          console.log("ZIG Flow: Selected Video Duration [" + targetDur + "]:", durBtn);
+          safeClick(durBtn);
+          await sleep(250);
+        }
+      }
+
+      // 4. Aspect Ratio (16:9, 9:16, 1:1, 4:3, 3:4)
       if (task.aspectRatio) {
         const targetRatio = String(task.aspectRatio).trim();
         const suffix = ratioToIdSuffix(targetRatio);
         const iconName = ratioToIconName(targetRatio);
         let ratioClicked = false;
 
-        // Strategy A: Match by Radix Trigger ID Suffix
         if (suffix) {
-          const ratioBtn = popover.querySelector(`button[id$="-trigger-${suffix}"], [id*="-trigger-${suffix}"]`) ||
-                           document.querySelector(`button[id$="-trigger-${suffix}"]`);
-          if (ratioBtn && ratioBtn.offsetParent !== null) {
-            console.log(`ZiggyFlow: Selected Ratio via ID suffix [-trigger-${suffix}]:`, ratioBtn);
-            highlightElement(ratioBtn, "#38bdf8");
+          const ratioBtn = popover.querySelector('button[id$="-trigger-' + suffix + '"], [id*="-trigger-' + suffix + '"]');
+          if (ratioBtn) {
             safeClick(ratioBtn);
             await sleep(250);
             ratioClicked = true;
           }
         }
 
-        // Strategy B: Match by Material Icon Symbol (crop_square, crop_portrait, crop_16_9, crop_landscape)
         if (!ratioClicked && iconName) {
-          const allButtons = Array.from(popover.querySelectorAll('button, [role="button"], [role="tab"], [role="radio"]'));
+          const allButtons = Array.from(popover.querySelectorAll('button, [role="tab"], [role="radio"]'));
           for (const btn of allButtons) {
-            if (btn.offsetParent === null) continue;
             const icon = btn.querySelector('i.google-symbols, i[class*="symbol"], [data-icon]');
-            const iconTxt = icon ? (icon.textContent || "").trim() : "";
-            if (iconTxt === iconName) {
-              console.log(`ZiggyFlow: Selected Ratio via Material Icon [${iconName}]:`, btn);
-              highlightElement(btn, "#38bdf8");
+            if (icon && (icon.textContent || "").trim() === iconName) {
               safeClick(btn);
               await sleep(250);
               ratioClicked = true;
@@ -749,169 +774,179 @@
           }
         }
 
-        // Strategy C: Match by aria-label, title, or text containing ratio strings
         if (!ratioClicked) {
-          const allItems = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], div, span'));
-          const ratioEl = allItems.find(el => {
-            if (el.offsetParent === null) return false;
-            const t = (el.textContent || "").trim().toLowerCase();
-            const aria = (el.getAttribute("aria-label") || "").trim().toLowerCase();
-            const title = (el.getAttribute("title") || "").trim().toLowerCase();
-            const rLow = targetRatio.toLowerCase();
-            return t === rLow || aria === rLow || title === rLow ||
-                   t.includes(rLow) || aria.includes(rLow) ||
-                   (iconName && (t.includes(iconName) || aria.includes(iconName)));
-          });
-
-          if (ratioEl) {
-            const targetBtn = ratioEl.closest('button, [role="button"], [role="radio"], [role="tab"]') || ratioEl;
-            console.log("ZiggyFlow: Selected Ratio via Text/Aria match:", targetRatio, targetBtn);
-            highlightElement(targetBtn, "#38bdf8");
-            safeClick(targetBtn);
-            await sleep(250);
-            ratioClicked = true;
-          }
-        }
-
-        if (!ratioClicked) {
-          console.warn("ZiggyFlow: Could not find ratio selector button for:", targetRatio);
-        }
-      }
-
-      // 3. Model Selection: e.g. "Nano Banana Pro", "Nano Banana 2", "Veo 3.1 - Fast"
-      if (task.model) {
-        const targetModel = String(task.model).trim().toLowerCase();
-        const modelPickers = Array.from(popover.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"], button'));
-        
-        // Find the model dropdown trigger in popover
-        const modelBtn = modelPickers.find(b => {
-          if (b.offsetParent === null) return false;
-          const txt = (b.textContent || "").trim().toLowerCase();
-          return txt.includes("banana") || txt.includes("nano") || txt.includes("veo") || txt.includes("imagen") || txt.includes("model");
-        });
-
-        if (modelBtn) {
-          const currentText = (modelBtn.textContent || "").trim().toLowerCase();
-          if (!currentText.includes(targetModel)) {
-            console.log("ZiggyFlow: Opening model picker dropdown:", modelBtn);
-            safeClick(modelBtn);
-            await sleep(350);
-
-            // Locate open menu and click item
-            const menus = Array.from(document.querySelectorAll('[role="menu"], [role="listbox"], .cdk-overlay-pane'));
-            if (menus.length > 0) {
-              const activeMenu = menus[menus.length - 1];
-              const menuItems = Array.from(activeMenu.querySelectorAll('button, [role="menuitem"], [role="option"], div, span'));
-              const targetItem = menuItems.find(item => {
-                const itTxt = (item.textContent || "").trim().toLowerCase();
-                return itTxt.includes(targetModel) || (targetModel.includes("pro") && itTxt.includes("pro"));
-              });
-
-              if (targetItem) {
-                const clickTarget = targetItem.closest('button, [role="menuitem"], [role="option"]') || targetItem;
-                console.log("ZiggyFlow: Selected Model item in dropdown:", targetModel, clickTarget);
-                safeClick(clickTarget);
-                await sleep(250);
-              }
+          const allButtons = Array.from(popover.querySelectorAll('button, [role="tab"], [role="radio"]'));
+          for (const btn of allButtons) {
+            const txt = (btn.textContent || "").trim().toLowerCase();
+            if (txt.includes(targetRatio.toLowerCase())) {
+              safeClick(btn);
+              await sleep(250);
+              ratioClicked = true;
+              break;
             }
           }
         }
       }
 
-      // 4. Quantity: e.g. "x1", "x2", "x3", "x4"
-      if (task.quantity) {
-        const qtyCount = task.quantity;
-        const qtySuffix = String(qtyCount);
-        
-        // Tier 1: ID suffix
-        const qtyBtn = popover.querySelector(`button[id$="-trigger-${qtySuffix}"], [id*="-trigger-${qtySuffix}"]`);
-        if (qtyBtn && qtyBtn.offsetParent !== null) {
+      // 5. Quantity (x1, x2, x3, x4)
+      const qty = parseInt(task.quantity, 10) || 1;
+      if (qty >= 1 && qty <= 4) {
+        const qtyBtn = popover.querySelector('button[id$="-trigger-' + qty + '"], [id*="-trigger-' + qty + '"]');
+        if (qtyBtn) {
           safeClick(qtyBtn);
-          await sleep(200);
+          await sleep(250);
         } else {
-          // Tier 2: Text matching
-          const allItems = Array.from(popover.querySelectorAll('button, [role="button"], [role="radio"], [role="tab"], div, span'));
-          const qtyEl = allItems.find(el => {
-            if (el.offsetParent === null) return false;
-            const t = (el.textContent || "").trim().toLowerCase();
-            const aria = (el.getAttribute("aria-label") || "").trim().toLowerCase();
-            return t === `x${qtyCount}` || t === String(qtyCount) || aria === `x${qtyCount}`;
-          });
-
-          if (qtyEl) {
-            const targetBtn = qtyEl.closest('button, [role="button"], [role="radio"], [role="tab"]') || qtyEl;
-            safeClick(targetBtn);
-            await sleep(200);
+          const qtyButtons = Array.from(popover.querySelectorAll('button, [role="tab"]'));
+          const matchQty = qtyButtons.find(b => (b.textContent || "").trim() === ("x" + qty) || (b.textContent || "").trim() === String(qty));
+          if (matchQty) {
+            safeClick(matchQty);
+            await sleep(250);
           }
         }
       }
 
-      // Close popover cleanly
-      const backdrop = findAllDeep('.cdk-overlay-backdrop, .backdrop, [class*="backdrop"]')[0];
-      if (backdrop && backdrop.offsetParent !== null) {
-        safeClick(backdrop);
-      } else {
-        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true }));
+      // 6. Model Selection (e.g. "Omni Flash", "Veo 2", "Nano Banana Pro")
+      if (task.model) {
+        const targetModel = String(task.model).trim().toLowerCase();
+        const modelBtn = Array.from(popover.querySelectorAll('button[aria-haspopup="menu"], button[aria-haspopup="listbox"], button')).find(b => {
+          const txt = (b.textContent || "").trim().toLowerCase();
+          return txt.includes("omni") || txt.includes("veo") || txt.includes("banana") || txt.includes("nano") || txt.includes("model");
+        });
+
+        if (modelBtn) {
+          const cur = (modelBtn.textContent || "").trim().toLowerCase();
+          if (!cur.includes(targetModel)) {
+            safeClick(modelBtn);
+            await sleep(350);
+            const menuItems = Array.from(document.querySelectorAll('[role="menuitem"], [role="option"], button'));
+            const matchItem = menuItems.find(m => (m.textContent || "").trim().toLowerCase().includes(targetModel));
+            if (matchItem) {
+              safeClick(matchItem);
+              await sleep(300);
+            }
+          }
+        }
       }
-      await sleep(300);
+
+      // Close settings popover cleanly
+      const closeBtn = popover.querySelector('button[aria-label*="close" i], button[aria-label*="Close" i]');
+      if (closeBtn) {
+        safeClick(closeBtn);
+      } else {
+        const pill = findSettingsPillButton();
+        if (pill) safeClick(pill);
+      }
+      await sleep(250);
 
     } catch (err) {
-      console.warn("ZiggyFlow: Settings error:", err);
+      console.warn("ZIG Flow: configureGoogleFlowSettings notice:", err.message);
     }
   }
 
-  function findSettingsPillButton() {
-    // 1. Check submit button sibling
-    const submitBtn = document.querySelector('[data-ziggy-generate="true"]');
-    if (submitBtn?.previousElementSibling && submitBtn.previousElementSibling.tagName === "BUTTON") {
-      return submitBtn.previousElementSibling;
+  
+  /** Convert base64 data URL to File */
+  function dataUrlToFile(dataUrl, filename = "keyframe.png") {
+    if (!dataUrl) return null;
+    if (dataUrl instanceof File) return dataUrl;
+    try {
+      const arr = dataUrl.split(',');
+      const mimeMatch = arr[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/png";
+      const bstr = atob(arr[1] || arr[0]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new File([u8arr], filename, { type: mime });
+    } catch(e) {
+      console.warn("ZIG Flow: dataUrlToFile error:", e.message);
+      return null;
     }
-
-    // 2. Search by icon or text
-    const candidates = findAllDeep('button, div[role="button"]');
-    return candidates.find(el => {
-      if (el.offsetParent === null || isExtensionElement(el)) return false;
-      const t = (el.textContent || "").toLowerCase();
-      const icon = el.querySelector('i.google-symbols, i[class*="symbol"], [data-icon]');
-      const iconTxt = icon ? (icon.textContent || "").trim() : "";
-      const rect = el.getBoundingClientRect();
-      
-      const hasSettingsIcon = iconTxt === "tune" || iconTxt === "settings" || iconTxt === "sliders" || iconTxt.startsWith("crop_") || iconTxt === "aspect_ratio";
-      const hasSettingsText = (t.includes("banana") || t.includes("veo") || t.includes("imagen") || t.includes("x1") || t.includes("x2") || t.includes("x3") || t.includes("x4") || t.includes("16:9") || t.includes("9:16") || t.includes("1:1")) && t.length < 60;
-      
-      return rect.top > window.innerHeight * 0.35 && (hasSettingsIcon || hasSettingsText);
-    });
   }
 
-  function findSettingsPopover() {
-    const candidates = findAllDeep('div, section, dialog, [role="dialog"], [role="menu"]');
-    const matched = candidates.filter(el => {
-      if (el.offsetParent === null || isExtensionElement(el)) return false;
-      const rect = el.getBoundingClientRect();
-      if (rect.width < 120 || rect.width > 650 || rect.height < 80 || rect.height > 650) return false;
-      const t = (el.textContent || "").toLowerCase();
-      return t.includes("16:9") && (t.includes("1:1") || t.includes("4:3") || t.includes("9:16") || t.includes("3:4"));
-    });
+  /** Injects keyframe image file into Google Flow keyframe slots or dropzones */
+  async function injectKeyframeOrReferenceToFlow(file, slotName = "start") {
+    if (!file) return false;
+    console.log("ZIG Flow: Ingesting " + slotName + " keyframe file:", file.name);
 
-    if (matched.length > 0) {
-      matched.sort((a, b) => {
-        const areaA = a.getBoundingClientRect().width * a.getBoundingClientRect().height;
-        const areaB = b.getBoundingClientRect().width * b.getBoundingClientRect().height;
-        return areaA - areaB;
-      });
-      return matched[0];
+    // Strategy A: Find file input elements
+    const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+    if (fileInputs.length > 0) {
+      for (const input of fileInputs) {
+        try {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          input.files = dt.files;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          console.log("ZIG Flow: Injected file via input[type='file'] for " + slotName);
+          await sleep(500);
+          return true;
+        } catch(e) {}
+      }
     }
-    return null;
+
+    // Strategy B: Drag & Drop simulation on Tile Container / Drop Targets
+    const targets = Array.from(document.querySelectorAll('[data-tile-id], [role="dialog"], main, div[class*="dropzone"], div[class*="canvas"], body'));
+    for (const target of targets) {
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        const rect = target.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dragOpts = { bubbles: true, cancelable: true, composed: true, dataTransfer: dt, clientX: cx, clientY: cy };
+
+        target.dispatchEvent(new DragEvent("dragenter", dragOpts));
+        target.dispatchEvent(new DragEvent("dragover", dragOpts));
+        target.dispatchEvent(new DragEvent("drop", dragOpts));
+        console.log("ZIG Flow: Injected file via native drop on <" + target.tagName + ">");
+        await sleep(500);
+        return true;
+      } catch(e) {}
+    }
+    return false;
   }
 
-  // =============================================
-  // 5. MAIN TASK EXECUTION ENGINE
-  // =============================================
-  // =============================================
-  // 5. TASK ORCHESTRATOR & GENERATION OBSERVER (TobyFlow Grade)
-  // =============================================
+
   async function executeFlowTask(task) {
     if (isTaskAborted) throw new Error("Task was aborted");
+    
+    // Direct tracker display trigger
+    try {
+      if (typeof self.FloatingTracker !== "undefined") {
+        self.FloatingTracker.update({
+          isRunning: true,
+          completed: 0,
+          total: 1,
+          jobs: [{
+            id: task.id || ("job_" + Date.now()),
+            owner: "Google Flow",
+            label: "ZIG Mini Tracker",
+            status: "running",
+            completed: 0,
+            failed: 0,
+            total: 1,
+            startedAt: Date.now(),
+            items: [{
+              id: task.id || ("gen_" + Date.now()),
+              prompt: task.prompt,
+              promptText: task.prompt,
+              promptIndex: 0,
+              state: "MONITORING",
+              model: task.model || (task.type === "video" ? "Omni Flash" : "Nano Banana Pro"),
+              ratio: task.aspectRatio || "16:9",
+              genType: task.type || "image",
+              quantity: task.quantity || 1,
+              submittedAt: Date.now(),
+              results: []
+            }]
+          }]
+        });
+      }
+    } catch(e) {}
+
     showLiveToast(`⚡ ZiggyFlow: Automating Flow generation...`);
 
     // Flag to prevent setupManualGenerationDetector from self-triggering on synthetic events
@@ -924,6 +959,21 @@
     } catch(e) {}
 
     // 0. Snapshot existing tiles & media BEFORE submitting to prevent grabbing stale images
+    
+    // 0.5 Ingest Start Frame, End Frame, and Reference Images if provided
+    if (task.startFrame) {
+      const startFile = dataUrlToFile(task.startFrame, "start_frame.png");
+      if (startFile) await injectKeyframeOrReferenceToFlow(startFile, "start");
+    }
+    if (task.endFrame) {
+      const endFile = dataUrlToFile(task.endFrame, "end_frame.png");
+      if (endFile) await injectKeyframeOrReferenceToFlow(endFile, "end");
+    }
+    if (task.referenceImage) {
+      const refFile = dataUrlToFile(task.referenceImage, "reference.png");
+      if (refFile) await injectKeyframeOrReferenceToFlow(refFile, "reference");
+    }
+
     const preTileIds = getUniqueTileIds();
     const preMediaSrcs = getExistingMediaSrcs();
     console.log(`ZiggyFlow: Pre-submit snapshot: ${preTileIds.size} existing tiles, ${preMediaSrcs.size} existing media sources.`);
