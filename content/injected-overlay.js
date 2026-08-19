@@ -506,7 +506,6 @@
       setupMiniWindowEvents(host);
       setupDraggableWindow(host);
       setupLightboxEvents(host);
-      startContinuousDOMObserver();
 
     } catch (err) {
       console.warn("ZIG Flow Mini overlay init note:", err);
@@ -841,24 +840,6 @@
     updateMiniSummary();
     renderTaskList();
     renderExpandedGallery();
-  }
-
-  // Continuous background DOM Observer that updates live progress percentage from active progress nodes
-  function startContinuousDOMObserver() {
-    if (canvasObserverInterval) clearInterval(canvasObserverInterval);
-    canvasObserverInterval = setInterval(() => {
-      // 1. Scan for percentage progress text from page
-      const pctNodes = Array.from(document.querySelectorAll('div, span, p, [role="progressbar"], [aria-busy="true"]'))
-        .filter(el => !el.closest("#ziggyflow-floating-hud") && el.offsetParent !== null);
-      for (const node of pctNodes) {
-        const text = node.textContent?.trim() || "";
-        const match = text.match(/\b(\d{1,3})%/);
-        if (match && Number(match[1]) > 0 && Number(match[1]) <= 100) {
-          onLiveRenderProgress(match[0]);
-          break;
-        }
-      }
-    }, 750);
   }
 
   function onQueueFinished() {
