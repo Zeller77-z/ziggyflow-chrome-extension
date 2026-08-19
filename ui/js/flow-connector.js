@@ -945,6 +945,7 @@ window.FlowConnector = {
           resolution: res,
           submitMode: this.submitMode || "auto",
           downloadMode: downloadSelect,
+          autoDownload: !!this.autoDownload,
           createdAt: Date.now()
         });
       }

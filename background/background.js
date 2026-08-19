@@ -130,6 +130,78 @@ class BackgroundController {
         sendResponse({ success: true });
         break;
 
+      case "pq:regenItem":
+        const regenPrompt = payload.prompt || (payload.payload && payload.payload.prompt);
+        let origTask = (this.currentBatch?.tasks || []).find(t => t.id === payload.itemId || t.id === payload.jobId);
+        const newTask = {
+          id: "gen_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+          prompt: regenPrompt || origTask?.prompt || "Regenerated Prompt",
+          provider: origTask?.provider || "flow",
+          type: origTask?.type || "image",
+          model: origTask?.model || "Nano Banana Pro",
+          aspectRatio: origTask?.aspectRatio || "16:9",
+          quantity: 1,
+          project: origTask?.project || "ziggyflow-01",
+          resolution: origTask?.resolution || "4K",
+          autoDownload: origTask?.autoDownload !== undefined ? origTask.autoDownload : false,
+          createdAt: Date.now()
+        };
+        if (!this.currentBatch) {
+          this.currentBatch = {
+            id: "job_" + Date.now(),
+            startedAt: Date.now(),
+            tasks: [newTask]
+          };
+        } else {
+          this.currentBatch.tasks.push(newTask);
+        }
+        this.taskQueue.push(newTask);
+        this.stats.total += 1;
+        this.updateBadge();
+        this.broadcastTracker();
+        if (!this.isRunning && !this.isPaused) {
+          this.startQueueProcessing();
+        }
+        sendResponse({ ok: true, success: true });
+        break;
+
+      case "chromeDownload":
+        const dlUrl = payload.url || request.url;
+        if (dlUrl) {
+          const dlFilename = (payload.filename || request.filename || `zigflow_${Date.now()}.png`).replace(/[<>:"/\\|?*]+/g, "_");
+          chrome.downloads.download({
+            url: dlUrl,
+            filename: dlFilename,
+            saveAs: false
+          }, (downloadId) => {
+            if (chrome.runtime.lastError) {
+              console.warn("ZIG Flow: Download error:", chrome.runtime.lastError.message);
+              sendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              sendResponse({ success: true, downloadId });
+            }
+          });
+          return true;
+        }
+        break;
+
+      case "removeWatermarkAndDownload":
+        const b64 = payload.base64 || request.base64;
+        if (b64) {
+          const mediaKind = payload.mediaType || request.mediaType || "image";
+          const dataUrl = `data:${payload.mime || (mediaKind === "video" ? "video/mp4" : "image/png")};base64,${b64}`;
+          const cleanFilename = (payload.filename || request.filename || `zigflow_${Date.now()}.${mediaKind === "video" ? "mp4" : "png"}`).replace(/[<>:"/\\|?*]+/g, "_");
+          chrome.downloads.download({
+            url: dataUrl,
+            filename: cleanFilename,
+            saveAs: false
+          }, (downloadId) => {
+            sendResponse({ success: true, downloadId });
+          });
+          return true;
+        }
+        break;
+
       case "EXECUTE_IMMEDIATE_TASK":
         this.executeImmediateTask(payload).then(res => sendResponse(res));
         break;
@@ -431,12 +503,30 @@ class BackgroundController {
           this.log(`[PIPELINE] Chained reference image from Node #${task.upstreamNodeId}`);
         }
 
-        await this.executeTask(task);
+        const res = await this.executeTask(task);
         this.stats.completed += 1;
+        if (this.currentBatch && Array.isArray(this.currentBatch.tasks)) {
+          const item = this.currentBatch.tasks.find(t => t.id === task.id || t.prompt === task.prompt);
+          if (item) {
+            item.status = "done";
+            if (res && res.url) item.mediaUrl = res.url;
+            if (res && res.type) item.type = res.type;
+            item.completedAt = Date.now();
+          }
+        }
+        this.broadcastTracker();
         this.log(`[SUCCESS] Completed task on ${task.provider?.toUpperCase()}!`);
       } catch (err) {
         this.log(`[ERROR] Generation failed on ${task.provider?.toUpperCase()}: ${err.message}`, "error");
         this.stats.failed += 1;
+        if (this.currentBatch && Array.isArray(this.currentBatch.tasks)) {
+          const item = this.currentBatch.tasks.find(t => t.id === task.id || t.prompt === task.prompt);
+          if (item) {
+            item.status = "failed";
+            item.error = err.message;
+          }
+        }
+        this.broadcastTracker();
         if (task.retriesLeft && task.retriesLeft > 0) {
           task.retriesLeft -= 1;
           this.log(`[RETRY] Retrying task (${task.retriesLeft} retries left)...`);
@@ -481,16 +571,30 @@ class BackgroundController {
       else if (this.currentTask && this.currentTask.id === t.id) state = "MONITORING";
       else if (idx === 0 && isRunning) state = "MONITORING";
 
+      const isVid = t.type === "video" || (t.mediaUrl && String(t.mediaUrl).includes(".mp4"));
+      const results = t.mediaUrl ? [{
+        url: t.mediaUrl,
+        video: isVid,
+        playUrl: t.mediaUrl,
+        type: t.type || (isVid ? "video" : "image"),
+        fileName: `${t.project || "zigflow"}_${idx + 1}_${(t.prompt || "render").substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}.${isVid ? "mp4" : "png"}`
+      }] : [];
+
       return {
         id: t.id,
         prompt: t.prompt,
         promptText: t.prompt,
+        promptIndex: idx,
         state: state,
-        model: t.model,
-        ratio: t.aspectRatio,
+        model: t.model || "Nano Banana Pro",
+        ratio: t.aspectRatio || "16:9",
+        genType: t.type || "image",
         quantity: t.quantity || 1,
         thumb: t.mediaUrl || null,
-        results: t.mediaUrl ? [{ url: t.mediaUrl, type: t.type || "image" }] : []
+        thumbVideo: isVid,
+        submittedAt: t.createdAt || Date.now(),
+        completedAt: t.completedAt || (t.status === "done" ? Date.now() : null),
+        results: results
       };
     });
 
@@ -502,7 +606,7 @@ class BackgroundController {
         {
           id: this.currentBatch?.id || ("job_" + Date.now()),
           owner: "Google Flow",
-          label: "ZIG Flow Mini",
+          label: "ZIG Mini Tracker",
           status: isRunning ? "running" : (this.stats.failed > 0 && completed === 0 ? "stopped" : "completed"),
           completed,
           failed: this.stats.failed,
@@ -556,11 +660,12 @@ class BackgroundController {
       }, (response) => {
         clearTimeout(timeout);
         if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else if (response && response.success) {
+          return reject(new Error(chrome.runtime.lastError.message));
+        }
+        if (response && response.success) {
           resolve(response.result);
         } else {
-          reject(new Error(response?.error || "Generation failed on target site"));
+          reject(new Error(response?.error || "Generation task failed on provider page"));
         }
       });
     });
@@ -601,11 +706,17 @@ class BackgroundController {
         item.status = "done";
         item.mediaUrl = data.mediaUrl;
         item.type = data.type || "image";
+        item.completedAt = Date.now();
       }
     }
     this.broadcastTracker();
 
-    if (self.downloadManager) {
+    const storageRes = await chrome.storage.local.get(["autoDownload", "downloadSettings"]);
+    const autoDownloadEnabled = data.autoDownload !== undefined 
+      ? !!data.autoDownload 
+      : (storageRes.autoDownload !== undefined ? !!storageRes.autoDownload : true);
+
+    if (autoDownloadEnabled && self.downloadManager) {
       await self.downloadManager.triggerDownload({
         url: data.mediaUrl,
         prompt: data.prompt,
@@ -615,6 +726,8 @@ class BackgroundController {
         type: data.type || "image"
       });
       this.log(`[DOWNLOAD] Auto-downloaded asset to subfolder: ${data.project || "ziggyflow-01"}`);
+    } else {
+      this.log(`[DOWNLOAD] Auto-download is OFF — asset saved to tracker only.`);
     }
 
     if (self.telegramBot && self.telegramBot.enabled) {
