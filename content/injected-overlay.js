@@ -433,14 +433,14 @@
     const pill = host.querySelector("#zf-pill-btn");
     const mini = host.querySelector("#zf-mini-window");
     const gallery = host.querySelector("#zf-expanded-gallery-overlay");
-    const btnMinimize = host.querySelector("#zf-btn-minimize-mini");
     const btnClose = host.querySelector("#zf-btn-close-mini");
     const btnExpand = host.querySelector("#zf-btn-expand-gallery");
     const btnCloseGallery = host.querySelector("#zf-btn-close-gallery");
-    const btnSound = host.querySelector("#zf-btn-toggle-sound");
     const btnDownloadAll = host.querySelector("#zf-btn-download-all");
-    const btnClearAll = host.querySelector("#zf-btn-clear-all");
     const btnGalleryDlAll = host.querySelector("#zf-btn-gallery-dl-all");
+    const btnCollapse = host.querySelector("#zf-btn-collapse-list");
+    const taskList = host.querySelector("#zf-mini-task-list");
+
     pill?.addEventListener("click", () => {
       mini.style.display = "flex";
       pill.style.display = "none";

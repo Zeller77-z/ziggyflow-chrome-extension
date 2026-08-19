@@ -427,6 +427,7 @@ class BackgroundController {
     // Ensure content script is injected into the target tab
     const scriptFile = scriptMap[provider] || "content/google-flow.js";
     await this.injectScriptIfNeeded(tab.id, scriptFile);
+    await this.injectScriptIfNeeded(tab.id, "content/injected-overlay.js");
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -593,7 +594,18 @@ class BackgroundController {
   }
 
   broadcast(message) {
+    // Send to extension sidepanel and popup
     chrome.runtime.sendMessage(message).catch(() => {});
+    // Send to all open tabs so in-page mini overlay receives every live event
+    chrome.tabs.query({}, (tabs) => {
+      if (Array.isArray(tabs)) {
+        tabs.forEach(tab => {
+          if (tab?.id) {
+            chrome.tabs.sendMessage(tab.id, message).catch(() => {});
+          }
+        });
+      }
+    });
   }
 }
 

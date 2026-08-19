@@ -628,6 +628,10 @@
     try {
       window.dispatchEvent(new CustomEvent("ZF_TASK_STARTED", { detail: task }));
       if (typeof window.__zf_onTaskStarted === "function") window.__zf_onTaskStarted(task);
+      const mini = document.getElementById("zf-mini-window");
+      const pill = document.getElementById("zf-pill-btn");
+      if (mini) mini.style.display = "flex";
+      if (pill) pill.style.display = "none";
     } catch(e) {}
 
     // 1. Settings Popover (Aspect Ratio & Quantity)
